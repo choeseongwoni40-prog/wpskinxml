@@ -1,69 +1,105 @@
 <?php get_header(); ?>
 
-<header class="search-header" style="background: #fff; padding: 40px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-    <h1 class="search-title">
-        검색 결과: <span style="color: #667eea;"><?php echo get_search_query(); ?></span>
+<div class="search-header" style="background: #fff; padding: 30px; border-radius: 10px; margin-bottom: 40px; box-shadow: 0 3px 10px rgba(0,0,0,0.1);">
+    <h1 style="margin: 0 0 15px 0; color: #2c3e50;">
+        검색 결과: "<?php echo get_search_query(); ?>"
     </h1>
     
-    <?php if (have_posts()) : ?>
-        <p style="color: #666; margin-top: 10px;">
-            <?php
-            global $wp_query;
-            echo $wp_query->found_posts;
-            ?>개의 결과를 찾았습니다.
-        </p>
-    <?php endif; ?>
-    
-    <div style="margin-top: 20px;">
-        <?php get_search_form(); ?>
-    </div>
-</header>
+    <form role="search" method="get" class="search-form" action="<?php echo esc_url(home_url('/')); ?>" style="display: flex; gap: 10px;">
+        <input type="search" name="s" placeholder="다시 검색..." value="<?php echo get_search_query(); ?>" style="flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px;">
+        <button type="submit" style="padding: 12px 30px; background: #3498db; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">검색</button>
+    </form>
+</div>
 
-<div class="posts-grid">
-    <?php
-    if (have_posts()) :
-        while (have_posts()) : the_post();
-            ?>
+<?php 
+$display_code = get_option('rm_display_code', '');
+if (!empty($display_code)): 
+?>
+<div class="ad-container" style="margin-bottom: 30px;">
+    <div class="ad-label">Advertisement</div>
+    <?php echo $display_code; ?>
+</div>
+<?php endif; ?>
+
+<?php if (have_posts()): ?>
+    <p style="color: #666; margin-bottom: 30px;">
+        <?php echo $wp_query->found_posts; ?>개의 결과를 찾았습니다.
+    </p>
+    
+    <div class="content-grid">
+        <?php while (have_posts()): the_post(); ?>
             <article id="post-<?php the_ID(); ?>" <?php post_class('post-card'); ?>>
-                <?php echo revenue_pro_thumbnail_ad(); ?>
                 
-                <div class="post-content-area">
+                <div class="post-thumbnail">
+                    <?php 
+                    if (!empty($display_code)) {
+                        echo '<div class="ad-container" style="height: 100%; margin: 0;">';
+                        echo '<div class="ad-label">Sponsored</div>';
+                        echo $display_code;
+                        echo '</div>';
+                    } elseif (has_post_thumbnail()) {
+                        the_post_thumbnail('medium');
+                    } else {
+                        echo '<div class="ad-container" style="height: 100%; margin: 0; background: #e0e0e0; display: flex; align-items: center; justify-content: center;">';
+                        echo '<span style="color: #999;">광고 위치</span>';
+                        echo '</div>';
+                    }
+                    ?>
+                </div>
+                
+                <div class="post-content">
                     <h2 class="post-title">
                         <a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
                     </h2>
                     
                     <div class="post-excerpt">
-                        <?php echo wp_trim_words(get_the_excerpt(), 20); ?>
+                        <?php echo wp_trim_words(get_the_excerpt(), 20, '...'); ?>
                     </div>
                     
-                    <a href="<?php the_permalink(); ?>" class="read-more-btn">
-                        자세히 읽기 →
-                    </a>
+                    <a href="<?php the_permalink(); ?>" class="read-more">자세히 보기</a>
                 </div>
             </article>
-            <?php
-        endwhile;
-        ?>
-        <div class="pagination" style="grid-column: 1 / -1; text-align: center; margin-top: 20px;">
-            <?php
-            echo paginate_links(array(
-                'prev_text' => '← 이전',
-                'next_text' => '다음 →',
-                'type' => 'plain'
-            ));
-            ?>
-        </div>
+        <?php endwhile; ?>
+    </div>
+    
+    <?php if (!empty($display_code)): ?>
+    <div class="ad-container" style="margin: 40px 0;">
+        <div class="ad-label">Advertisement</div>
+        <?php echo $display_code; ?>
+    </div>
+    <?php endif; ?>
+    
+    <div class="pagination">
         <?php
-    else :
+        global $wp_query;
+        
+        $big = 999999999;
+        
+        echo paginate_links(array(
+            'base' => str_replace($big, '%#%', esc_url(get_pagenum_link($big))),
+            'format' => '?paged=%#%',
+            'current' => max(1, get_query_var('paged')),
+            'total' => $wp_query->max_num_pages,
+            'prev_text' => '&laquo; 이전',
+            'next_text' => '다음 &raquo;',
+            'type' => 'list',
+            'end_size' => 3,
+            'mid_size' => 2
+        ));
         ?>
-        <div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: #fff; border-radius: 12px;">
-            <h2>검색 결과가 없습니다</h2>
-            <p style="color: #666; margin: 20px 0;">다른 검색어로 다시 시도해보세요.</p>
-            <?php get_search_form(); ?>
-        </div>
-        <?php
-    endif;
-    ?>
-</div>
+    </div>
+    
+<?php else: ?>
+    <div class="no-posts" style="background: #fff; padding: 60px; border-radius: 10px; text-align: center;">
+        <h2>검색 결과가 없습니다</h2>
+        <p style="color: #666; margin: 20px 0;">"<?php echo get_search_query(); ?>"에 대한 검색 결과를 찾을 수 없습니다.</p>
+        <p style="color: #666; margin-bottom: 30px;">다른 키워드로 검색해보세요.</p>
+        
+        <form role="search" method="get" class="search-form" action="<?php echo esc_url(home_url('/')); ?>" style="max-width: 500px; margin: 0 auto; display: flex; gap: 10px;">
+            <input type="search" name="s" placeholder="검색어 입력..." style="flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px;">
+            <button type="submit" style="padding: 12px 30px; background: #3498db; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">검색</button>
+        </form>
+    </div>
+<?php endif; ?>
 
 <?php get_footer(); ?>
