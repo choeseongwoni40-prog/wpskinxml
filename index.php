@@ -1,60 +1,54 @@
 <?php get_header(); ?>
 
-<div class="content-wrapper">
-    <main class="main-content">
-        <div class="posts-grid">
-            <?php
-            if (have_posts()) :
-                while (have_posts()) : the_post();
+<div class="posts-grid">
+    <?php
+    if (have_posts()) :
+        while (have_posts()) : the_post();
             ?>
-                <article id="post-<?php the_ID(); ?>" <?php post_class('post-card'); ?>>
-                    <?php
-                    // 썸네일 대신 광고 표시
-                    $native_ad = get_option('revenue_native_ad', '');
-                    if (!empty($native_ad)) :
-                    ?>
-                        <div class="post-ad-placeholder">
-                            <?php echo $native_ad; ?>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <div class="post-content-wrapper">
-                        <header class="post-header">
-                            <h2 class="post-title">
-                                <a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
-                            </h2>
-                            <div class="post-meta">
-                                <span class="post-date"><?php echo get_the_date(); ?></span>
-                                <span class="post-author"> • <?php the_author(); ?></span>
-                            </div>
-                        </header>
-                        
-                        <div class="post-excerpt">
-                            <?php the_excerpt(); ?>
-                        </div>
-                        
-                        <a href="<?php the_permalink(); ?>" class="read-more">
-                            자세히 보기 →
-                        </a>
-                    </div>
-                </article>
-            <?php
-                endwhile;
+            <article id="post-<?php the_ID(); ?>" <?php post_class('post-card'); ?>>
+                <?php
+                // 썸네일 광고 표시
+                echo revenue_pro_thumbnail_ad();
+                ?>
                 
-                // 페이지네이션
-                the_posts_pagination(array(
-                    'mid_size' => 2,
-                    'prev_text' => '← 이전',
-                    'next_text' => '다음 →',
-                ));
-            else :
+                <div class="post-content-area">
+                    <h2 class="post-title">
+                        <a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
+                    </h2>
+                    
+                    <div class="post-excerpt">
+                        <?php echo wp_trim_words(get_the_excerpt(), 20); ?>
+                    </div>
+                    
+                    <a href="<?php the_permalink(); ?>" class="read-more-btn">
+                        자세히 읽기 →
+                    </a>
+                </div>
+            </article>
+            <?php
+        endwhile;
+        
+        // 페이지네이션
+        ?>
+        <div class="pagination" style="grid-column: 1 / -1; text-align: center; margin-top: 20px;">
+            <?php
+            echo paginate_links(array(
+                'prev_text' => '← 이전',
+                'next_text' => '다음 →',
+                'type' => 'plain',
+                'before_page_number' => '<span class="screen-reader-text">Page </span>'
+            ));
             ?>
-                <p>게시물이 없습니다.</p>
-            <?php endif; ?>
         </div>
-    </main>
-
-    <?php get_sidebar(); ?>
+        <?php
+    else :
+        ?>
+        <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+            <p>아직 게시글이 없습니다.</p>
+        </div>
+        <?php
+    endif;
+    ?>
 </div>
 
 <?php get_footer(); ?>
