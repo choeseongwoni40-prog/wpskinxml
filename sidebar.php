@@ -8,15 +8,10 @@ if (!is_active_sidebar('sidebar-1')) {
     <?php dynamic_sidebar('sidebar-1'); ?>
     
     <?php
-    // 네이티브 광고 삽입 (사이드바용)
+    // 타뷸라 스타일 사이드바 광고
     $native_ad = get_option('revenue_native_ad', '');
     if (!empty($native_ad) && is_single()) :
+        echo revenue_master_generate_taboola_ad($native_ad, 'sidebar');
+    endif;
     ?>
-        <div class="widget">
-            <div class="native-ad-container">
-                <div class="native-ad-label">Sponsored</div>
-                <?php echo $native_ad; ?>
-            </div>
-        </div>
-    <?php endif; ?>
 </aside>
