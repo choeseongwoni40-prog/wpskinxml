@@ -120,57 +120,11 @@
         InterstitialAdManager.close();
     };
     
-    // 타뷸라 스타일 광고 CTR 최적화
+    // 타뷸라 스타일 광고 CTR 최적화 (썸네일 제거 버전)
     const TaboolaStyleOptimizer = {
         init: function() {
-            this.enhanceAdThumbnails();
             this.addHoverEffects();
             this.trackClicks();
-        },
-        
-        enhanceAdThumbnails: function() {
-            // 광고 썸네일에 동적 그라데이션 적용
-            const adThumbnails = document.querySelectorAll('.taboola-ad-thumbnail, .recommended-thumbnail, .sidebar-ad-thumbnail');
-            
-            const gradients = [
-                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-                'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
-                'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
-                'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)'
-            ];
-            
-            adThumbnails.forEach((thumbnail, index) => {
-                const gradient = gradients[index % gradients.length];
-                thumbnail.style.background = gradient;
-                
-                // 텍스트 오버레이 추가 (더 클릭하고 싶게)
-                const overlay = document.createElement('div');
-                overlay.style.cssText = `
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: white;
-                    font-weight: 700;
-                    font-size: 18px;
-                    text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-                    opacity: 0.9;
-                `;
-                
-                const titles = ['인기 콘텐츠', '추천 글', '더 알아보기', '관련 정보', '인기 추천', '핫 이슈'];
-                overlay.textContent = titles[index % titles.length];
-                
-                thumbnail.style.position = 'relative';
-                thumbnail.appendChild(overlay);
-            });
         },
         
         addHoverEffects: function() {
@@ -194,7 +148,6 @@
         trackClicks: function() {
             // 광고 클릭 추적
             $('.taboola-ad-item, .recommended-item, .sidebar-ad-item').on('click', function(e) {
-                // 광고가 아닌 실제 클릭 가능한 영역인지 확인
                 const hasAdCode = $(this).closest('.native-ad-container, .recommended-content').find('ins.adsbygoogle').length > 0;
                 
                 if (hasAdCode && typeof gtag !== 'undefined') {
