@@ -1,367 +1,367 @@
 /**
- * Revenue Pro Theme - Custom JavaScript
- * 수익 극대화를 위한 광고 관리 및 사용자 경험 최적화
+ * Revenue Maximizer Pro - Custom JavaScript
+ * 광고 CTR 극대화 및 사용자 경험 최적화
  */
 
 (function($) {
     'use strict';
     
     // 전면 광고 관리
-    let lastInterstitialTime = 0;
-    const INTERSTITIAL_INTERVAL = 60000; // 60초 = 1분
-    
-    // 페이지 로드 시 초기화
-    $(document).ready(function() {
-        initializeInterstitialAd();
-        optimizeAdVisibility();
-        trackAdPerformance();
-    });
-    
-    /**
-     * 전면 광고 초기화
-     */
-    function initializeInterstitialAd() {
-        const interstitialOverlay = $('#interstitial-overlay');
+    var InterstitialAd = {
+        lastShown: 0,
+        interval: 60000, // 1분 (60,000ms)
+        isShowing: false,
         
-        if (interstitialOverlay.length === 0) {
-            return;
-        }
-        
-        // 링크 클릭 시 전면 광고 표시
-        $('a').on('click', function(e) {
-            const href = $(this).attr('href');
-            
-            // 외부 링크나 특정 링크는 제외
-            if (!href || href.indexOf('#') === 0 || href.indexOf('javascript:') === 0) {
+        init: function() {
+            if (!adSettings.interstitialCode) {
                 return;
             }
             
-            // 시간 체크
-            const currentTime = Date.now();
-            if (currentTime - lastInterstitialTime < INTERSTITIAL_INTERVAL) {
-                return; // 아직 1분이 지나지 않음
+            // 페이지 로드 시
+            this.setupListeners();
+            
+            // 첫 방문이면 30초 후에 표시
+            setTimeout(function() {
+                InterstitialAd.show();
+            }, 30000);
+        },
+        
+        setupListeners: function() {
+            var self = this;
+            
+            // 내부 링크 클릭 시
+            $('a').on('click', function(e) {
+                var href = $(this).attr('href');
+                
+                // 외부 링크는 제외
+                if (!href || href.indexOf('#') === 0 || href.indexOf('http') === 0 && href.indexOf(window.location.hostname) === -1) {
+                    return;
+                }
+                
+                var now = Date.now();
+                var timeSinceLastAd = now - self.lastShown;
+                
+                // 1분이 지났으면 광고 표시
+                if (timeSinceLastAd >= self.interval && !self.isShowing) {
+                    e.preventDefault();
+                    var targetUrl = href;
+                    
+                    self.show(function() {
+                        window.location.href = targetUrl;
+                    });
+                }
+            });
+        },
+        
+        show: function(callback) {
+            if (this.isShowing || !adSettings.interstitialCode) {
+                if (callback) callback();
+                return;
             }
             
-            // 전면 광고 표시
-            e.preventDefault();
-            showInterstitialAd(href);
-            lastInterstitialTime = currentTime;
-        });
-    }
-    
-    /**
-     * 전면 광고 표시
-     */
-    function showInterstitialAd(targetUrl) {
-        const interstitialOverlay = $('#interstitial-overlay');
-        interstitialOverlay.addClass('active');
+            this.isShowing = true;
+            this.lastShown = Date.now();
+            
+            var $overlay = $('#interstitial-ad');
+            var $content = $('#interstitial-ad-content');
+            
+            // 광고 코드 삽입
+            $content.html(adSettings.interstitialCode);
+            
+            // 오버레이 표시
+            $overlay.addClass('active');
+            
+            // 5초 후 자동 닫기
+            var self = this;
+            setTimeout(function() {
+                self.close();
+                if (callback) callback();
+            }, 5000);
+        },
         
-        // 5초 후 자동으로 닫고 페이지 이동
-        setTimeout(function() {
-            closeInterstitial();
-            window.location.href = targetUrl;
-        }, 5000);
-    }
-    
-    /**
-     * 전면 광고 닫기
-     */
-    window.closeInterstitial = function() {
-        $('#interstitial-overlay').removeClass('active');
+        close: function() {
+            $('#interstitial-ad').removeClass('active');
+            this.isShowing = false;
+        }
     };
     
-    /**
-     * 광고 가시성 최적화
-     * 타뷸라 스타일의 CTR 극대화 전략
-     */
-    function optimizeAdVisibility() {
-        // 네이티브 광고에 호버 효과 추가
-        $('.native-ad-container').hover(
-            function() {
-                $(this).css({
-                    'transform': 'scale(1.02)',
-                    'box-shadow': '0 8px 25px rgba(0,0,0,0.15)',
+    // 네이티브 광고 최적화 (타뷸라 스타일)
+    var NativeAd = {
+        init: function() {
+            this.styleNativeAds();
+            this.trackVisibility();
+        },
+        
+        styleNativeAds: function() {
+            $('.native-ad-container').each(function() {
+                var $container = $(this);
+                
+                // 타뷸라 스타일 적용
+                $container.css({
+                    'background': '#fff',
+                    'border': '1px solid #e0e0e0',
+                    'border-radius': '8px',
+                    'padding': '15px',
+                    'margin': '25px 0',
                     'transition': 'all 0.3s ease'
                 });
-            },
-            function() {
-                $(this).css({
-                    'transform': 'scale(1)',
-                    'box-shadow': '0 4px 15px rgba(0,0,0,0.08)'
-                });
-            }
-        );
-        
-        // 썸네일 광고 최적화
-        $('.post-thumbnail-ad').each(function() {
-            const $ad = $(this);
-            
-            // 뷰포트에 들어올 때 애니메이션
-            observeAdVisibility($ad);
-        });
-        
-        // 앵커 광고 스크롤 시 표시/숨김
-        let anchorAdVisible = true;
-        let lastScrollTop = 0;
-        
-        $(window).scroll(function() {
-            const scrollTop = $(this).scrollTop();
-            const $anchorAd = $('.anchor-ad');
-            
-            if ($anchorAd.length === 0) {
-                return;
-            }
-            
-            // 스크롤 다운 시 표시, 스크롤 업 시 숨김 (사용자 경험 개선)
-            if (scrollTop > lastScrollTop && scrollTop > 300) {
-                // 스크롤 다운
-                if (!anchorAdVisible) {
-                    $anchorAd.slideDown(300);
-                    anchorAdVisible = true;
-                }
-            } else {
-                // 스크롤 업 또는 상단 근처
-                if (scrollTop < 100 && anchorAdVisible) {
-                    $anchorAd.slideUp(300);
-                    anchorAdVisible = false;
-                }
-            }
-            
-            lastScrollTop = scrollTop;
-        });
-    }
-    
-    /**
-     * Intersection Observer를 사용한 광고 가시성 추적
-     */
-    function observeAdVisibility(adElement) {
-        if ('IntersectionObserver' in window) {
-            const observer = new IntersectionObserver(function(entries) {
-                entries.forEach(function(entry) {
-                    if (entry.isIntersecting) {
-                        // 뷰포트에 들어옴
-                        $(entry.target).css({
-                            'opacity': '0',
-                            'transform': 'translateY(20px)'
-                        }).animate({
-                            opacity: 1
-                        }, 600).css({
-                            'transform': 'translateY(0)',
-                            'transition': 'transform 0.6s ease'
+                
+                // 호버 효과
+                $container.hover(
+                    function() {
+                        $(this).css({
+                            'box-shadow': '0 4px 12px rgba(0,0,0,0.1)',
+                            'transform': 'translateY(-2px)'
                         });
-                        
-                        // 한 번만 실행
-                        observer.unobserve(entry.target);
+                    },
+                    function() {
+                        $(this).css({
+                            'box-shadow': 'none',
+                            'transform': 'translateY(0)'
+                        });
                     }
-                });
-            }, {
-                threshold: 0.1
+                );
             });
-            
-            observer.observe(adElement[0]);
-        }
-    }
-    
-    /**
-     * 광고 성능 추적
-     */
-    function trackAdPerformance() {
-        // 클릭 추적
-        $('.native-ad-container, .post-thumbnail-ad, .anchor-ad').on('click', function() {
-            const adType = $(this).attr('class').split(' ')[0];
-            
-            // 콘솔에 로그 (실제로는 서버나 분석 도구로 전송)
-            console.log('Ad Clicked:', {
-                type: adType,
-                timestamp: new Date().toISOString(),
-                page: window.location.href
-            });
-            
-            // Google Analytics가 있다면 이벤트 전송
-            if (typeof gtag !== 'undefined') {
-                gtag('event', 'ad_click', {
-                    'event_category': 'Ads',
-                    'event_label': adType,
-                    'value': 1
+        },
+        
+        trackVisibility: function() {
+            if ('IntersectionObserver' in window) {
+                var observer = new IntersectionObserver(function(entries) {
+                    entries.forEach(function(entry) {
+                        if (entry.isIntersecting) {
+                            // 광고가 보일 때 애니메이션
+                            $(entry.target).css({
+                                'opacity': '0',
+                                'transform': 'translateY(20px)'
+                            }).animate({
+                                'opacity': '1',
+                                'transform': 'translateY(0)'
+                            }, 500);
+                            
+                            observer.unobserve(entry.target);
+                        }
+                    });
+                }, { threshold: 0.5 });
+                
+                $('.native-ad-container').each(function() {
+                    observer.observe(this);
                 });
             }
-        });
-        
-        // 뷰 추적
-        trackAdViews();
-    }
-    
-    /**
-     * 광고 노출 추적
-     */
-    function trackAdViews() {
-        if ('IntersectionObserver' in window) {
-            const viewObserver = new IntersectionObserver(function(entries) {
-                entries.forEach(function(entry) {
-                    if (entry.isIntersecting) {
-                        const adType = $(entry.target).attr('class').split(' ')[0];
-                        
-                        console.log('Ad Viewed:', {
-                            type: adType,
-                            timestamp: new Date().toISOString(),
-                            page: window.location.href
-                        });
-                        
-                        // Google Analytics 이벤트
-                        if (typeof gtag !== 'undefined') {
-                            gtag('event', 'ad_impression', {
-                                'event_category': 'Ads',
-                                'event_label': adType,
-                                'value': 1
-                            });
-                        }
-                        
-                        // 한 번만 추적
-                        viewObserver.unobserve(entry.target);
-                    }
-                });
-            }, {
-                threshold: 0.5 // 50% 이상 보일 때
-            });
-            
-            // 모든 광고 요소 관찰
-            $('.native-ad-container, .post-thumbnail-ad, .anchor-ad').each(function() {
-                viewObserver.observe(this);
-            });
-        }
-    }
-    
-    /**
-     * 부드러운 스크롤
-     */
-    $('a[href*="#"]').on('click', function(e) {
-        const target = $(this.hash);
-        if (target.length) {
-            e.preventDefault();
-            $('html, body').animate({
-                scrollTop: target.offset().top - 100
-            }, 800);
-        }
-    });
-    
-    /**
-     * 읽기 시간 계산 및 표시
-     */
-    function calculateReadingTime() {
-        const content = $('.entry-content').text();
-        const wordCount = content.split(/\s+/).length;
-        const readingTime = Math.ceil(wordCount / 200); // 분당 200단어 기준
-        
-        if (readingTime > 0 && $('.entry-meta').length) {
-            $('.entry-meta').append(' • 읽는 시간: 약 ' + readingTime + '분');
-        }
-    }
-    
-    // 싱글 포스트에서 읽기 시간 표시
-    if ($('body').hasClass('single-post') || $('body').hasClass('single')) {
-        calculateReadingTime();
-    }
-    
-    /**
-     * 이미지 지연 로딩 (성능 최적화)
-     */
-    if ('loading' in HTMLImageElement.prototype) {
-        // 네이티브 지연 로딩 지원
-        $('img').attr('loading', 'lazy');
-    } else {
-        // Intersection Observer 폴백
-        if ('IntersectionObserver' in window) {
-            const imageObserver = new IntersectionObserver(function(entries) {
-                entries.forEach(function(entry) {
-                    if (entry.isIntersecting) {
-                        const img = entry.target;
-                        if (img.dataset.src) {
-                            img.src = img.dataset.src;
-                            imageObserver.unobserve(img);
-                        }
-                    }
-                });
-            });
-            
-            $('img').each(function() {
-                imageObserver.observe(this);
-            });
-        }
-    }
-    
-    /**
-     * CTR 극대화를 위한 A/B 테스트 시뮬레이션
-     */
-    function runAdOptimization() {
-        // 랜덤하게 광고 스타일 변경 (A/B 테스트)
-        const adVariant = Math.random() > 0.5 ? 'variant-a' : 'variant-b';
-        
-        $('.native-ad-container').addClass(adVariant);
-        
-        // Variant A: 기본 스타일
-        // Variant B: 더 강조된 스타일
-        if (adVariant === 'variant-b') {
-            $('.native-ad-container').css({
-                'border': '2px solid #667eea',
-                'background': 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
-            });
-        }
-    }
-    
-    // 광고 최적화 실행
-    runAdOptimization();
-    
-    /**
-     * 모바일 메뉴 토글 (필요시)
-     */
-    $('.menu-toggle').on('click', function() {
-        $('.main-navigation').slideToggle(300);
-    });
-    
-    /**
-     * 스크롤 진행 표시기
-     */
-    if ($('body').hasClass('single-post') || $('body').hasClass('single')) {
-        $('body').prepend('<div class="reading-progress"><div class="progress-bar"></div></div>');
-        
-        $(window).scroll(function() {
-            const windowHeight = $(window).height();
-            const documentHeight = $(document).height();
-            const scrollTop = $(window).scrollTop();
-            const progress = (scrollTop / (documentHeight - windowHeight)) * 100;
-            
-            $('.progress-bar').css('width', progress + '%');
-        });
-        
-        // 진행 표시기 스타일
-        $('<style>')
-            .text('.reading-progress{position:fixed;top:0;left:0;width:100%;height:4px;background:#e0e0e0;z-index:9999;}.progress-bar{height:100%;background:linear-gradient(90deg,#667eea,#764ba2);transition:width 0.1s;}')
-            .appendTo('head');
-    }
-    
-    /**
-     * 공유 버튼 기능 (소셜 공유)
-     */
-    window.shareContent = function(platform) {
-        const url = encodeURIComponent(window.location.href);
-        const title = encodeURIComponent(document.title);
-        let shareUrl = '';
-        
-        switch(platform) {
-            case 'facebook':
-                shareUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + url;
-                break;
-            case 'twitter':
-                shareUrl = 'https://twitter.com/intent/tweet?url=' + url + '&text=' + title;
-                break;
-            case 'linkedin':
-                shareUrl = 'https://www.linkedin.com/sharing/share-offsite/?url=' + url;
-                break;
-        }
-        
-        if (shareUrl) {
-            window.open(shareUrl, '_blank', 'width=600,height=400');
         }
     };
+    
+    // 광고 컨테이너 최적화
+    var AdContainer = {
+        init: function() {
+            this.optimizeAdContainers();
+            this.lazyLoadAds();
+        },
+        
+        optimizeAdContainers: function() {
+            $('.ad-container').each(function() {
+                var $container = $(this);
+                
+                // 레이블 스타일
+                $container.find('.ad-label').css({
+                    'font-size': '10px',
+                    'color': '#999',
+                    'text-transform': 'uppercase',
+                    'letter-spacing': '1px',
+                    'margin-bottom': '10px',
+                    'text-align': 'center'
+                });
+                
+                // 컨테이너 스타일
+                $container.css({
+                    'background': '#f8f9fa',
+                    'border-radius': '8px',
+                    'padding': '15px',
+                    'text-align': 'center',
+                    'min-height': '250px'
+                });
+            });
+        },
+        
+        lazyLoadAds: function() {
+            if ('IntersectionObserver' in window) {
+                var observer = new IntersectionObserver(function(entries) {
+                    entries.forEach(function(entry) {
+                        if (entry.isIntersecting) {
+                            var $ad = $(entry.target);
+                            
+                            // 광고 로드 트리거
+                            if ($ad.data('ad-loaded') !== 'true') {
+                                $ad.data('ad-loaded', 'true');
+                                
+                                // 광고 스크립트가 있다면 실행
+                                var scripts = $ad.find('script');
+                                scripts.each(function() {
+                                    if (this.src) {
+                                        var script = document.createElement('script');
+                                        script.src = this.src;
+                                        document.head.appendChild(script);
+                                    }
+                                });
+                            }
+                            
+                            observer.unobserve(entry.target);
+                        }
+                    });
+                }, { rootMargin: '200px' });
+                
+                $('.ad-container, .native-ad-container').each(function() {
+                    observer.observe(this);
+                });
+            }
+        }
+    };
+    
+    // CTR 향상을 위한 버튼 최적화
+    var ButtonOptimizer = {
+        init: function() {
+            this.optimizeButtons();
+            this.addHoverEffects();
+        },
+        
+        optimizeButtons: function() {
+            // 모든 링크를 버튼 스타일로
+            $('a:not(nav a):not(.post-title a)').each(function() {
+                var $link = $(this);
+                
+                if (!$link.hasClass('read-more') && !$link.closest('.post-card').length) {
+                    $link.css({
+                        'display': 'inline-block',
+                        'padding': '10px 20px',
+                        'background': '#3498db',
+                        'color': '#fff',
+                        'text-decoration': 'none',
+                        'border-radius': '5px',
+                        'transition': 'all 0.3s ease',
+                        'margin': '5px'
+                    });
+                }
+            });
+        },
+        
+        addHoverEffects: function() {
+            $('.read-more, a[class*="button"]').hover(
+                function() {
+                    $(this).css({
+                        'transform': 'scale(1.05)',
+                        'box-shadow': '0 4px 8px rgba(0,0,0,0.2)'
+                    });
+                },
+                function() {
+                    $(this).css({
+                        'transform': 'scale(1)',
+                        'box-shadow': 'none'
+                    });
+                }
+            );
+        }
+    };
+    
+    // 스크롤 기반 광고 표시
+    var ScrollAd = {
+        init: function() {
+            this.trackScroll();
+        },
+        
+        trackScroll: function() {
+            var scrollPercentage = 0;
+            var adShown = false;
+            
+            $(window).on('scroll', function() {
+                var scrollTop = $(window).scrollTop();
+                var docHeight = $(document).height();
+                var winHeight = $(window).height();
+                
+                scrollPercentage = (scrollTop / (docHeight - winHeight)) * 100;
+                
+                // 50% 스크롤 시 추가 광고 표시 (한 번만)
+                if (scrollPercentage > 50 && !adShown) {
+                    adShown = true;
+                    // 여기에 추가 광고 로직
+                }
+            });
+        }
+    };
+    
+    // 앵커 광고 최적화
+    var AnchorAd = {
+        init: function() {
+            this.optimizeAnchor();
+        },
+        
+        optimizeAnchor: function() {
+            var $anchor = $('#anchor-ad');
+            
+            if ($anchor.length) {
+                // 스크롤 시 부드럽게 나타남
+                var lastScrollTop = 0;
+                $(window).on('scroll', function() {
+                    var scrollTop = $(window).scrollTop();
+                    
+                    if (scrollTop > 300) {
+                        $anchor.css({
+                            'opacity': '1',
+                            'transform': 'translateY(0)'
+                        });
+                    } else {
+                        $anchor.css({
+                            'opacity': '0',
+                            'transform': 'translateY(100%)'
+                        });
+                    }
+                    
+                    lastScrollTop = scrollTop;
+                });
+            }
+        }
+    };
+    
+    // 전면 광고 닫기 함수 (글로벌)
+    window.closeInterstitial = function() {
+        InterstitialAd.close();
+    };
+    
+    // 문서 준비 완료 시 초기화
+    $(document).ready(function() {
+        InterstitialAd.init();
+        NativeAd.init();
+        AdContainer.init();
+        ButtonOptimizer.init();
+        ScrollAd.init();
+        AnchorAd.init();
+        
+        // 이미지 레이지 로딩
+        if ('loading' in HTMLImageElement.prototype) {
+            $('img').attr('loading', 'lazy');
+        }
+        
+        // 외부 링크는 새 탭에서
+        $('a[href^="http"]').not('[href*="' + window.location.hostname + '"]').attr({
+            'target': '_blank',
+            'rel': 'noopener noreferrer'
+        });
+        
+        // 광고 클릭 추적 (선택사항)
+        $('.ad-container, .native-ad-container').on('click', 'a', function() {
+            // 여기에 추적 코드 추가 가능
+            console.log('광고 클릭됨');
+        });
+    });
+    
+    // 모바일 최적화
+    if (window.innerWidth < 768) {
+        // 모바일에서 광고 크기 조정
+        $('.ad-container').css({
+            'padding': '10px',
+            'min-height': '200px'
+        });
+        
+        // 전면 광고 간격을 조금 더 늘림
+        InterstitialAd.interval = 90000; // 1.5분
+    }
     
 })(jQuery);
