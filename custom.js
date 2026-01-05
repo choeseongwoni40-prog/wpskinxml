@@ -120,14 +120,102 @@
         InterstitialAdManager.close();
     };
     
+    // 타뷸라 스타일 광고 CTR 최적화
+    const TaboolaStyleOptimizer = {
+        init: function() {
+            this.enhanceAdThumbnails();
+            this.addHoverEffects();
+            this.trackClicks();
+        },
+        
+        enhanceAdThumbnails: function() {
+            // 광고 썸네일에 동적 그라데이션 적용
+            const adThumbnails = document.querySelectorAll('.taboola-ad-thumbnail, .recommended-thumbnail, .sidebar-ad-thumbnail');
+            
+            const gradients = [
+                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
+                'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+                'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)'
+            ];
+            
+            adThumbnails.forEach((thumbnail, index) => {
+                const gradient = gradients[index % gradients.length];
+                thumbnail.style.background = gradient;
+                
+                // 텍스트 오버레이 추가 (더 클릭하고 싶게)
+                const overlay = document.createElement('div');
+                overlay.style.cssText = `
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-weight: 700;
+                    font-size: 18px;
+                    text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+                    opacity: 0.9;
+                `;
+                
+                const titles = ['인기 콘텐츠', '추천 글', '더 알아보기', '관련 정보', '인기 추천', '핫 이슈'];
+                overlay.textContent = titles[index % titles.length];
+                
+                thumbnail.style.position = 'relative';
+                thumbnail.appendChild(overlay);
+            });
+        },
+        
+        addHoverEffects: function() {
+            // 호버 시 더욱 눈에 띄는 효과
+            $('.taboola-ad-item, .recommended-item, .sidebar-ad-item').hover(
+                function() {
+                    $(this).css({
+                        'box-shadow': '0 8px 25px rgba(52, 152, 219, 0.4)',
+                        'border': '2px solid #3498db'
+                    });
+                },
+                function() {
+                    $(this).css({
+                        'box-shadow': '',
+                        'border': ''
+                    });
+                }
+            );
+        },
+        
+        trackClicks: function() {
+            // 광고 클릭 추적
+            $('.taboola-ad-item, .recommended-item, .sidebar-ad-item').on('click', function(e) {
+                // 광고가 아닌 실제 클릭 가능한 영역인지 확인
+                const hasAdCode = $(this).closest('.native-ad-container, .recommended-content').find('ins.adsbygoogle').length > 0;
+                
+                if (hasAdCode && typeof gtag !== 'undefined') {
+                    gtag('event', 'ad_click', {
+                        'event_category': 'advertising',
+                        'event_label': 'taboola_style_ad'
+                    });
+                }
+            });
+        }
+    };
+    
     // CTR 최적화: 광고 가시성 추적
     const AdVisibilityTracker = {
         init: function() {
             this.trackNativeAds();
+            this.addViewabilityTracking();
         },
         
         trackNativeAds: function() {
-            const nativeAds = $('.native-ad-container');
+            const nativeAds = $('.native-ad-container, .recommended-content');
             
             if (!nativeAds.length) return;
             
@@ -139,7 +227,7 @@
                             // 광고가 화면에 보임
                             $(entry.target).addClass('ad-visible');
                             
-                            // 애널리틱스 이벤트 (선택사항)
+                            // 애널리틱스 이벤트
                             this.trackAdView(entry.target);
                         }
                     });
@@ -153,12 +241,45 @@
             }
         },
         
+        addViewabilityTracking: function() {
+            // 광고가 3초 이상 화면에 보이면 추적
+            const viewedAds = new Set();
+            
+            $('.native-ad-container, .recommended-content').each(function() {
+                const adElement = this;
+                let viewTimer = null;
+                
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            viewTimer = setTimeout(() => {
+                                if (!viewedAds.has(adElement)) {
+                                    viewedAds.add(adElement);
+                                    
+                                    if (typeof gtag !== 'undefined') {
+                                        gtag('event', 'ad_viewable', {
+                                            'event_category': 'advertising',
+                                            'event_label': 'taboola_style_viewable'
+                                        });
+                                    }
+                                }
+                            }, 3000);
+                        } else {
+                            clearTimeout(viewTimer);
+                        }
+                    });
+                }, { threshold: 0.7 });
+                
+                observer.observe(adElement);
+            });
+        },
+        
         trackAdView: function(adElement) {
-            // 광고 노출 추적 (구글 애널리틱스 등과 연동 가능)
+            // 광고 노출 추적
             if (typeof gtag !== 'undefined') {
-                gtag('event', 'ad_view', {
+                gtag('event', 'ad_impression', {
                     'event_category': 'advertising',
-                    'event_label': 'native_ad'
+                    'event_label': 'taboola_style_impression'
                 });
             }
         }
@@ -246,6 +367,7 @@
     // 초기화
     $(document).ready(function() {
         InterstitialAdManager.init();
+        TaboolaStyleOptimizer.init();
         AdVisibilityTracker.init();
         SmoothScroll.init();
         LazyLoad.init();
@@ -256,7 +378,7 @@
             $('.main-navigation').toggleClass('active');
         });
         
-        console.log('✅ Revenue Master Theme Loaded - 수익 극대화 모드 활성화');
+        console.log('✅ Revenue Master Theme Loaded - 타뷸라 스타일 CTR 극대화 모드');
     });
     
 })(jQuery);
