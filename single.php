@@ -15,9 +15,13 @@
                     </div>
                 </header>
 
-                <?php if (has_post_thumbnail()) : ?>
-                    <div class="post-thumbnail-wrapper">
-                        <?php the_post_thumbnail('large'); ?>
+                <?php 
+                // 썸네일 대신 광고 표시
+                $native_ad = get_option('revenue_native_ad', '');
+                if (!empty($native_ad)) : 
+                ?>
+                    <div class="post-ad-header">
+                        <?php echo $native_ad; ?>
                     </div>
                 <?php endif; ?>
 
