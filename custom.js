@@ -1,337 +1,367 @@
 /**
- * Revenue Master Theme Custom JavaScript
- * 수익 극대화를 위한 광고 관리 및 CTR 최적화
+ * Revenue Pro Theme - Custom JavaScript
+ * 수익 극대화를 위한 광고 관리 및 사용자 경험 최적화
  */
 
 (function($) {
     'use strict';
-
+    
     // 전면 광고 관리
-    const InterstitialAdManager = {
-        lastShown: 0,
-        minInterval: 60000, // 1분 (60초)
-        overlay: null,
-        enabled: typeof revenueInterstitial !== 'undefined' && revenueInterstitial.enabled,
-        
-        init: function() {
-            if (!this.enabled) return;
-            
-            this.overlay = document.getElementById('interstitial-overlay');
-            if (!this.overlay) return;
-            
-            // 마지막 표시 시간 로드
-            const lastShownStr = localStorage.getItem('revenue_last_interstitial');
-            if (lastShownStr) {
-                this.lastShown = parseInt(lastShownStr);
-            }
-            
-            // 페이지 전환 감지 (링크 클릭)
-            this.attachLinkHandlers();
-            
-            // 페이지 로드 시 첫 광고 (조건 충족 시)
-            this.checkAndShow();
-        },
-        
-        attachLinkHandlers: function() {
-            const self = this;
-            
-            // 내부 링크에만 적용
-            $('a[href^="' + window.location.origin + '"]').on('click', function(e) {
-                const href = $(this).attr('href');
-                
-                // 앵커 링크나 외부 링크 제외
-                if (href.indexOf('#') === 0 || $(this).attr('target') === '_blank') {
-                    return;
-                }
-                
-                // 광고 표시 가능 여부 확인
-                if (self.canShow()) {
-                    e.preventDefault();
-                    self.show(href);
-                }
-            });
-        },
-        
-        canShow: function() {
-            const now = Date.now();
-            const timeSinceLastShown = now - this.lastShown;
-            return timeSinceLastShown >= this.minInterval;
-        },
-        
-        checkAndShow: function() {
-            // 첫 페이지 로드 시에는 표시하지 않음 (UX 고려)
-            // 세션에서 방문 횟수 확인
-            const visitCount = parseInt(sessionStorage.getItem('revenue_visit_count') || '0');
-            sessionStorage.setItem('revenue_visit_count', (visitCount + 1).toString());
-            
-            if (visitCount >= 2 && this.canShow()) {
-                // 3번째 페이지부터 표시
-                setTimeout(() => this.show(null), 1000);
-            }
-        },
-        
-        show: function(redirectUrl) {
-            if (!this.overlay) return;
-            
-            // 광고 코드 삽입
-            const adSlot = document.getElementById('interstitial-ad-slot');
-            if (adSlot && revenueInterstitial.code) {
-                adSlot.innerHTML = revenueInterstitial.code;
-            }
-            
-            // 오버레이 표시
-            this.overlay.style.display = 'flex';
-            document.body.style.overflow = 'hidden';
-            
-            // 마지막 표시 시간 저장
-            this.lastShown = Date.now();
-            localStorage.setItem('revenue_last_interstitial', this.lastShown.toString());
-            
-            // 리다이렉트 URL 저장
-            if (redirectUrl) {
-                this.overlay.setAttribute('data-redirect', redirectUrl);
-            }
-            
-            // 자동 닫기 (5초 후)
-            setTimeout(() => {
-                if (this.overlay.style.display === 'flex') {
-                    this.close();
-                }
-            }, 5000);
-        },
-        
-        close: function() {
-            if (!this.overlay) return;
-            
-            this.overlay.style.display = 'none';
-            document.body.style.overflow = '';
-            
-            // 리다이렉트 처리
-            const redirectUrl = this.overlay.getAttribute('data-redirect');
-            if (redirectUrl) {
-                this.overlay.removeAttribute('data-redirect');
-                window.location.href = redirectUrl;
-            }
-        }
-    };
+    let lastInterstitialTime = 0;
+    const INTERSTITIAL_INTERVAL = 60000; // 60초 = 1분
     
-    // 전역 닫기 함수
+    // 페이지 로드 시 초기화
+    $(document).ready(function() {
+        initializeInterstitialAd();
+        optimizeAdVisibility();
+        trackAdPerformance();
+    });
+    
+    /**
+     * 전면 광고 초기화
+     */
+    function initializeInterstitialAd() {
+        const interstitialOverlay = $('#interstitial-overlay');
+        
+        if (interstitialOverlay.length === 0) {
+            return;
+        }
+        
+        // 링크 클릭 시 전면 광고 표시
+        $('a').on('click', function(e) {
+            const href = $(this).attr('href');
+            
+            // 외부 링크나 특정 링크는 제외
+            if (!href || href.indexOf('#') === 0 || href.indexOf('javascript:') === 0) {
+                return;
+            }
+            
+            // 시간 체크
+            const currentTime = Date.now();
+            if (currentTime - lastInterstitialTime < INTERSTITIAL_INTERVAL) {
+                return; // 아직 1분이 지나지 않음
+            }
+            
+            // 전면 광고 표시
+            e.preventDefault();
+            showInterstitialAd(href);
+            lastInterstitialTime = currentTime;
+        });
+    }
+    
+    /**
+     * 전면 광고 표시
+     */
+    function showInterstitialAd(targetUrl) {
+        const interstitialOverlay = $('#interstitial-overlay');
+        interstitialOverlay.addClass('active');
+        
+        // 5초 후 자동으로 닫고 페이지 이동
+        setTimeout(function() {
+            closeInterstitial();
+            window.location.href = targetUrl;
+        }, 5000);
+    }
+    
+    /**
+     * 전면 광고 닫기
+     */
     window.closeInterstitial = function() {
-        InterstitialAdManager.close();
+        $('#interstitial-overlay').removeClass('active');
     };
     
-    // 타뷸라 스타일 광고 CTR 최적화 (썸네일 제거 버전)
-    const TaboolaStyleOptimizer = {
-        init: function() {
-            this.addHoverEffects();
-            this.trackClicks();
-        },
-        
-        addHoverEffects: function() {
-            // 호버 시 더욱 눈에 띄는 효과
-            $('.taboola-ad-item, .recommended-item, .sidebar-ad-item').hover(
-                function() {
-                    $(this).css({
-                        'box-shadow': '0 8px 25px rgba(52, 152, 219, 0.4)',
-                        'border': '2px solid #3498db'
-                    });
-                },
-                function() {
-                    $(this).css({
-                        'box-shadow': '',
-                        'border': ''
-                    });
-                }
-            );
-        },
-        
-        trackClicks: function() {
-            // 광고 클릭 추적
-            $('.taboola-ad-item, .recommended-item, .sidebar-ad-item').on('click', function(e) {
-                const hasAdCode = $(this).closest('.native-ad-container, .recommended-content').find('ins.adsbygoogle').length > 0;
-                
-                if (hasAdCode && typeof gtag !== 'undefined') {
-                    gtag('event', 'ad_click', {
-                        'event_category': 'advertising',
-                        'event_label': 'taboola_style_ad'
-                    });
-                }
-            });
-        }
-    };
-    
-    // CTR 최적화: 광고 가시성 추적
-    const AdVisibilityTracker = {
-        init: function() {
-            this.trackNativeAds();
-            this.addViewabilityTracking();
-        },
-        
-        trackNativeAds: function() {
-            const nativeAds = $('.native-ad-container, .recommended-content');
-            
-            if (!nativeAds.length) return;
-            
-            // Intersection Observer로 가시성 추적
-            if ('IntersectionObserver' in window) {
-                const observer = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            // 광고가 화면에 보임
-                            $(entry.target).addClass('ad-visible');
-                            
-                            // 애널리틱스 이벤트
-                            this.trackAdView(entry.target);
-                        }
-                    });
-                }, {
-                    threshold: 0.5 // 50% 이상 보일 때
+    /**
+     * 광고 가시성 최적화
+     * 타뷸라 스타일의 CTR 극대화 전략
+     */
+    function optimizeAdVisibility() {
+        // 네이티브 광고에 호버 효과 추가
+        $('.native-ad-container').hover(
+            function() {
+                $(this).css({
+                    'transform': 'scale(1.02)',
+                    'box-shadow': '0 8px 25px rgba(0,0,0,0.15)',
+                    'transition': 'all 0.3s ease'
                 });
-                
-                nativeAds.each(function() {
-                    observer.observe(this);
+            },
+            function() {
+                $(this).css({
+                    'transform': 'scale(1)',
+                    'box-shadow': '0 4px 15px rgba(0,0,0,0.08)'
                 });
             }
-        },
+        );
         
-        addViewabilityTracking: function() {
-            // 광고가 3초 이상 화면에 보이면 추적
-            const viewedAds = new Set();
+        // 썸네일 광고 최적화
+        $('.post-thumbnail-ad').each(function() {
+            const $ad = $(this);
             
-            $('.native-ad-container, .recommended-content').each(function() {
-                const adElement = this;
-                let viewTimer = null;
-                
-                const observer = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            viewTimer = setTimeout(() => {
-                                if (!viewedAds.has(adElement)) {
-                                    viewedAds.add(adElement);
-                                    
-                                    if (typeof gtag !== 'undefined') {
-                                        gtag('event', 'ad_viewable', {
-                                            'event_category': 'advertising',
-                                            'event_label': 'taboola_style_viewable'
-                                        });
-                                    }
-                                }
-                            }, 3000);
-                        } else {
-                            clearTimeout(viewTimer);
-                        }
-                    });
-                }, { threshold: 0.7 });
-                
-                observer.observe(adElement);
-            });
-        },
+            // 뷰포트에 들어올 때 애니메이션
+            observeAdVisibility($ad);
+        });
         
-        trackAdView: function(adElement) {
-            // 광고 노출 추적
-            if (typeof gtag !== 'undefined') {
-                gtag('event', 'ad_impression', {
-                    'event_category': 'advertising',
-                    'event_label': 'taboola_style_impression'
-                });
+        // 앵커 광고 스크롤 시 표시/숨김
+        let anchorAdVisible = true;
+        let lastScrollTop = 0;
+        
+        $(window).scroll(function() {
+            const scrollTop = $(this).scrollTop();
+            const $anchorAd = $('.anchor-ad');
+            
+            if ($anchorAd.length === 0) {
+                return;
             }
-        }
-    };
-    
-    // 스크롤 최적화: 부드러운 스크롤
-    const SmoothScroll = {
-        init: function() {
-            $('a[href*="#"]').not('[href="#"]').not('[href="#0"]').click(function(e) {
-                if (location.pathname.replace(/^\//, '') === this.pathname.replace(/^\//, '') 
-                    && location.hostname === this.hostname) {
-                    
-                    const target = $(this.hash);
-                    const targetElement = target.length ? target : $('[name=' + this.hash.slice(1) + ']');
-                    
-                    if (targetElement.length) {
-                        e.preventDefault();
-                        $('html, body').animate({
-                            scrollTop: targetElement.offset().top - 80
-                        }, 800);
-                    }
+            
+            // 스크롤 다운 시 표시, 스크롤 업 시 숨김 (사용자 경험 개선)
+            if (scrollTop > lastScrollTop && scrollTop > 300) {
+                // 스크롤 다운
+                if (!anchorAdVisible) {
+                    $anchorAd.slideDown(300);
+                    anchorAdVisible = true;
                 }
-            });
-        }
-    };
-    
-    // 이미지 지연 로딩 (성능 최적화)
-    const LazyLoad = {
-        init: function() {
-            if ('loading' in HTMLImageElement.prototype) {
-                // 네이티브 lazy loading 지원
-                const images = document.querySelectorAll('img[loading="lazy"]');
-                images.forEach(img => {
-                    if (img.dataset.src) {
-                        img.src = img.dataset.src;
-                    }
-                });
             } else {
-                // Intersection Observer 폴백
-                this.observerFallback();
+                // 스크롤 업 또는 상단 근처
+                if (scrollTop < 100 && anchorAdVisible) {
+                    $anchorAd.slideUp(300);
+                    anchorAdVisible = false;
+                }
             }
-        },
+            
+            lastScrollTop = scrollTop;
+        });
+    }
+    
+    /**
+     * Intersection Observer를 사용한 광고 가시성 추적
+     */
+    function observeAdVisibility(adElement) {
+        if ('IntersectionObserver' in window) {
+            const observer = new IntersectionObserver(function(entries) {
+                entries.forEach(function(entry) {
+                    if (entry.isIntersecting) {
+                        // 뷰포트에 들어옴
+                        $(entry.target).css({
+                            'opacity': '0',
+                            'transform': 'translateY(20px)'
+                        }).animate({
+                            opacity: 1
+                        }, 600).css({
+                            'transform': 'translateY(0)',
+                            'transition': 'transform 0.6s ease'
+                        });
+                        
+                        // 한 번만 실행
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, {
+                threshold: 0.1
+            });
+            
+            observer.observe(adElement[0]);
+        }
+    }
+    
+    /**
+     * 광고 성능 추적
+     */
+    function trackAdPerformance() {
+        // 클릭 추적
+        $('.native-ad-container, .post-thumbnail-ad, .anchor-ad').on('click', function() {
+            const adType = $(this).attr('class').split(' ')[0];
+            
+            // 콘솔에 로그 (실제로는 서버나 분석 도구로 전송)
+            console.log('Ad Clicked:', {
+                type: adType,
+                timestamp: new Date().toISOString(),
+                page: window.location.href
+            });
+            
+            // Google Analytics가 있다면 이벤트 전송
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'ad_click', {
+                    'event_category': 'Ads',
+                    'event_label': adType,
+                    'value': 1
+                });
+            }
+        });
         
-        observerFallback: function() {
-            const imageObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
+        // 뷰 추적
+        trackAdViews();
+    }
+    
+    /**
+     * 광고 노출 추적
+     */
+    function trackAdViews() {
+        if ('IntersectionObserver' in window) {
+            const viewObserver = new IntersectionObserver(function(entries) {
+                entries.forEach(function(entry) {
+                    if (entry.isIntersecting) {
+                        const adType = $(entry.target).attr('class').split(' ')[0];
+                        
+                        console.log('Ad Viewed:', {
+                            type: adType,
+                            timestamp: new Date().toISOString(),
+                            page: window.location.href
+                        });
+                        
+                        // Google Analytics 이벤트
+                        if (typeof gtag !== 'undefined') {
+                            gtag('event', 'ad_impression', {
+                                'event_category': 'Ads',
+                                'event_label': adType,
+                                'value': 1
+                            });
+                        }
+                        
+                        // 한 번만 추적
+                        viewObserver.unobserve(entry.target);
+                    }
+                });
+            }, {
+                threshold: 0.5 // 50% 이상 보일 때
+            });
+            
+            // 모든 광고 요소 관찰
+            $('.native-ad-container, .post-thumbnail-ad, .anchor-ad').each(function() {
+                viewObserver.observe(this);
+            });
+        }
+    }
+    
+    /**
+     * 부드러운 스크롤
+     */
+    $('a[href*="#"]').on('click', function(e) {
+        const target = $(this.hash);
+        if (target.length) {
+            e.preventDefault();
+            $('html, body').animate({
+                scrollTop: target.offset().top - 100
+            }, 800);
+        }
+    });
+    
+    /**
+     * 읽기 시간 계산 및 표시
+     */
+    function calculateReadingTime() {
+        const content = $('.entry-content').text();
+        const wordCount = content.split(/\s+/).length;
+        const readingTime = Math.ceil(wordCount / 200); // 분당 200단어 기준
+        
+        if (readingTime > 0 && $('.entry-meta').length) {
+            $('.entry-meta').append(' • 읽는 시간: 약 ' + readingTime + '분');
+        }
+    }
+    
+    // 싱글 포스트에서 읽기 시간 표시
+    if ($('body').hasClass('single-post') || $('body').hasClass('single')) {
+        calculateReadingTime();
+    }
+    
+    /**
+     * 이미지 지연 로딩 (성능 최적화)
+     */
+    if ('loading' in HTMLImageElement.prototype) {
+        // 네이티브 지연 로딩 지원
+        $('img').attr('loading', 'lazy');
+    } else {
+        // Intersection Observer 폴백
+        if ('IntersectionObserver' in window) {
+            const imageObserver = new IntersectionObserver(function(entries) {
+                entries.forEach(function(entry) {
                     if (entry.isIntersecting) {
                         const img = entry.target;
                         if (img.dataset.src) {
                             img.src = img.dataset.src;
-                            img.classList.add('loaded');
                             imageObserver.unobserve(img);
                         }
                     }
                 });
             });
             
-            document.querySelectorAll('img[data-src]').forEach(img => {
-                imageObserver.observe(img);
+            $('img').each(function() {
+                imageObserver.observe(this);
             });
         }
-    };
+    }
     
-    // 읽기 진행률 표시 (사용자 참여도 향상)
-    const ReadingProgress = {
-        init: function() {
-            if (!$('body').hasClass('single')) return;
-            
-            // 진행률 바 추가
-            $('body').prepend('<div id="reading-progress" style="position:fixed;top:0;left:0;width:0%;height:3px;background:#3498db;z-index:10000;transition:width 0.1s;"></div>');
-            
-            const progressBar = $('#reading-progress');
-            
-            $(window).on('scroll', function() {
-                const windowHeight = $(window).height();
-                const documentHeight = $(document).height();
-                const scrollTop = $(window).scrollTop();
-                
-                const progress = (scrollTop / (documentHeight - windowHeight)) * 100;
-                progressBar.css('width', progress + '%');
-            });
-        }
-    };
-    
-    // 초기화
-    $(document).ready(function() {
-        InterstitialAdManager.init();
-        TaboolaStyleOptimizer.init();
-        AdVisibilityTracker.init();
-        SmoothScroll.init();
-        LazyLoad.init();
-        ReadingProgress.init();
+    /**
+     * CTR 극대화를 위한 A/B 테스트 시뮬레이션
+     */
+    function runAdOptimization() {
+        // 랜덤하게 광고 스타일 변경 (A/B 테스트)
+        const adVariant = Math.random() > 0.5 ? 'variant-a' : 'variant-b';
         
-        // 모바일 메뉴 토글 (필요시)
-        $('.menu-toggle').on('click', function() {
-            $('.main-navigation').toggleClass('active');
+        $('.native-ad-container').addClass(adVariant);
+        
+        // Variant A: 기본 스타일
+        // Variant B: 더 강조된 스타일
+        if (adVariant === 'variant-b') {
+            $('.native-ad-container').css({
+                'border': '2px solid #667eea',
+                'background': 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
+            });
+        }
+    }
+    
+    // 광고 최적화 실행
+    runAdOptimization();
+    
+    /**
+     * 모바일 메뉴 토글 (필요시)
+     */
+    $('.menu-toggle').on('click', function() {
+        $('.main-navigation').slideToggle(300);
+    });
+    
+    /**
+     * 스크롤 진행 표시기
+     */
+    if ($('body').hasClass('single-post') || $('body').hasClass('single')) {
+        $('body').prepend('<div class="reading-progress"><div class="progress-bar"></div></div>');
+        
+        $(window).scroll(function() {
+            const windowHeight = $(window).height();
+            const documentHeight = $(document).height();
+            const scrollTop = $(window).scrollTop();
+            const progress = (scrollTop / (documentHeight - windowHeight)) * 100;
+            
+            $('.progress-bar').css('width', progress + '%');
         });
         
-        console.log('✅ Revenue Master Theme Loaded - 타뷸라 스타일 CTR 극대화 모드');
-    });
+        // 진행 표시기 스타일
+        $('<style>')
+            .text('.reading-progress{position:fixed;top:0;left:0;width:100%;height:4px;background:#e0e0e0;z-index:9999;}.progress-bar{height:100%;background:linear-gradient(90deg,#667eea,#764ba2);transition:width 0.1s;}')
+            .appendTo('head');
+    }
+    
+    /**
+     * 공유 버튼 기능 (소셜 공유)
+     */
+    window.shareContent = function(platform) {
+        const url = encodeURIComponent(window.location.href);
+        const title = encodeURIComponent(document.title);
+        let shareUrl = '';
+        
+        switch(platform) {
+            case 'facebook':
+                shareUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + url;
+                break;
+            case 'twitter':
+                shareUrl = 'https://twitter.com/intent/tweet?url=' + url + '&text=' + title;
+                break;
+            case 'linkedin':
+                shareUrl = 'https://www.linkedin.com/sharing/share-offsite/?url=' + url;
+                break;
+        }
+        
+        if (shareUrl) {
+            window.open(shareUrl, '_blank', 'width=600,height=400');
+        }
+    };
     
 })(jQuery);
