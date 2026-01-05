@@ -1,479 +1,471 @@
 <?php
 /**
- * Revenue Pro Theme Functions
- * 수익화 극대화 워드프레스 테마
+ * Revenue Maximizer Pro Functions
  */
 
 // 테마 설정
-function revenue_pro_setup() {
+function revenue_maximizer_setup() {
     add_theme_support('title-tag');
     add_theme_support('post-thumbnails');
-    add_theme_support('html5', array('search-form', 'comment-form', 'comment-list', 'gallery', 'caption'));
+    add_theme_support('custom-logo');
+    add_theme_support('automatic-feed-links');
+    add_theme_support('html5', array('search-form', 'comment-form', 'gallery', 'caption'));
     
     register_nav_menus(array(
-        'primary' => '메인 메뉴',
+        'primary' => '메인 메뉴'
     ));
 }
-add_action('after_setup_theme', 'revenue_pro_setup');
+add_action('after_setup_theme', 'revenue_maximizer_setup');
 
 // 스크립트 및 스타일 로드
-function revenue_pro_scripts() {
-    wp_enqueue_style('revenue-pro-style', get_stylesheet_uri());
-    wp_enqueue_script('revenue-pro-custom', get_template_directory_uri() . '/custom.js', array('jquery'), '1.0', true);
+function revenue_maximizer_scripts() {
+    wp_enqueue_style('revenue-maximizer-style', get_stylesheet_uri());
+    wp_enqueue_script('revenue-maximizer-custom', get_template_directory_uri() . '/custom.js', array('jquery'), '1.0', true);
     
-    // 로컬라이제이션
-    wp_localize_script('revenue-pro-custom', 'revenueProData', array(
-        'ajaxurl' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('revenue_pro_nonce')
+    // 로컬라이즈 스크립트
+    wp_localize_script('revenue-maximizer-custom', 'adSettings', array(
+        'interstitialCode' => get_option('rm_interstitial_code', ''),
+        'anchorCode' => get_option('rm_anchor_code', ''),
+        'nativeCode' => get_option('rm_native_code', ''),
+        'displayCode' => get_option('rm_display_code', '')
     ));
 }
-add_action('wp_enqueue_scripts', 'revenue_pro_scripts');
+add_action('wp_enqueue_scripts', 'revenue_maximizer_scripts');
 
 // 관리자 메뉴 추가
-function revenue_pro_admin_menu() {
+function revenue_maximizer_admin_menu() {
     add_menu_page(
-        'Revenue Pro 설정',
-        'Revenue Pro',
+        '광고 설정',
+        '광고 설정',
         'manage_options',
-        'revenue-pro-settings',
-        'revenue_pro_settings_page',
-        'dashicons-chart-line',
+        'rm-ad-settings',
+        'revenue_maximizer_ad_settings_page',
+        'dashicons-money-alt',
         30
     );
     
-    add_submenu_page(
-        'revenue-pro-settings',
-        'AI 콘텐츠 생성',
-        'AI 콘텐츠 생성',
+    add_menu_page(
+        'AI 글쓰기',
+        'AI 글쓰기',
         'manage_options',
-        'revenue-pro-ai-content',
-        'revenue_pro_ai_content_page'
+        'rm-ai-writer',
+        'revenue_maximizer_ai_writer_page',
+        'dashicons-edit',
+        31
     );
     
-    add_submenu_page(
-        'revenue-pro-settings',
-        '광고 관리',
-        '광고 관리',
+    add_menu_page(
+        '썸네일 생성',
+        '썸네일 생성',
         'manage_options',
-        'revenue-pro-ads',
-        'revenue_pro_ads_page'
+        'rm-thumbnail',
+        'revenue_maximizer_thumbnail_page',
+        'dashicons-format-image',
+        32
     );
 }
-add_action('admin_menu', 'revenue_pro_admin_menu');
+add_action('admin_menu', 'revenue_maximizer_admin_menu');
 
-// 설정 페이지
-function revenue_pro_settings_page() {
-    if (isset($_POST['revenue_pro_save_settings'])) {
-        check_admin_referer('revenue_pro_settings');
-        
-        update_option('revenue_pro_blog_link', sanitize_text_field($_POST['blog_link']));
-        update_option('revenue_pro_interstitial_code', wp_kses_post($_POST['interstitial_code']));
-        update_option('revenue_pro_anchor_code', wp_kses_post($_POST['anchor_code']));
-        update_option('revenue_pro_native_code', wp_kses_post($_POST['native_code']));
-        update_option('revenue_pro_thumbnail_code', wp_kses_post($_POST['thumbnail_code']));
-        
-        echo '<div class="notice notice-success"><p>설정이 저장되었습니다.</p></div>';
+// 광고 설정 페이지
+function revenue_maximizer_ad_settings_page() {
+    if (isset($_POST['rm_save_ads'])) {
+        update_option('rm_interstitial_code', sanitize_textarea_field($_POST['interstitial_code']));
+        update_option('rm_anchor_code', sanitize_textarea_field($_POST['anchor_code']));
+        update_option('rm_native_code', sanitize_textarea_field($_POST['native_code']));
+        update_option('rm_display_code', sanitize_textarea_field($_POST['display_code']));
+        echo '<div class="updated"><p>광고 설정이 저장되었습니다!</p></div>';
     }
     
-    $blog_link = get_option('revenue_pro_blog_link', home_url());
-    $interstitial_code = get_option('revenue_pro_interstitial_code', '');
-    $anchor_code = get_option('revenue_pro_anchor_code', '');
-    $native_code = get_option('revenue_pro_native_code', '');
-    $thumbnail_code = get_option('revenue_pro_thumbnail_code', '');
+    $interstitial = get_option('rm_interstitial_code', '');
+    $anchor = get_option('rm_anchor_code', '');
+    $native = get_option('rm_native_code', '');
+    $display = get_option('rm_display_code', '');
+    
     ?>
     <div class="wrap">
-        <h1>Revenue Pro 설정</h1>
+        <h1>광고 설정</h1>
         <form method="post" action="">
-            <?php wp_nonce_field('revenue_pro_settings'); ?>
-            
             <table class="form-table">
                 <tr>
-                    <th><label for="blog_link">블로그 로고 링크 URL</label></th>
+                    <th scope="row"><label for="interstitial_code">전면 광고 코드</label></th>
                     <td>
-                        <input type="url" name="blog_link" id="blog_link" value="<?php echo esc_attr($blog_link); ?>" class="regular-text">
-                        <p class="description">헤더 블로그 이름을 클릭했을 때 이동할 URL을 입력하세요.</p>
+                        <textarea name="interstitial_code" id="interstitial_code" rows="5" cols="50" class="large-text"><?php echo esc_textarea($interstitial); ?></textarea>
+                        <p class="description">페이지 전환 시 표시되는 전면 광고 코드를 입력하세요. (1분 간격)</p>
                     </td>
                 </tr>
                 <tr>
-                    <th><label for="interstitial_code">전면 광고 코드</label></th>
+                    <th scope="row"><label for="anchor_code">앵커 광고 코드</label></th>
                     <td>
-                        <textarea name="interstitial_code" id="interstitial_code" rows="5" class="large-text"><?php echo esc_textarea($interstitial_code); ?></textarea>
-                        <p class="description">페이지 전환 시 표시될 전면 광고 코드 (Google AdSense 등)</p>
+                        <textarea name="anchor_code" id="anchor_code" rows="5" cols="50" class="large-text"><?php echo esc_textarea($anchor); ?></textarea>
+                        <p class="description">화면 하단 고정 앵커 광고 코드를 입력하세요.</p>
                     </td>
                 </tr>
                 <tr>
-                    <th><label for="anchor_code">앵커 광고 코드</label></th>
+                    <th scope="row"><label for="native_code">네이티브 광고 코드</label></th>
                     <td>
-                        <textarea name="anchor_code" id="anchor_code" rows="5" class="large-text"><?php echo esc_textarea($anchor_code); ?></textarea>
-                        <p class="description">하단 고정 앵커 광고 코드</p>
+                        <textarea name="native_code" id="native_code" rows="5" cols="50" class="large-text"><?php echo esc_textarea($native); ?></textarea>
+                        <p class="description">콘텐츠 내 네이티브 광고 코드를 입력하세요.</p>
                     </td>
                 </tr>
                 <tr>
-                    <th><label for="native_code">네이티브 광고 코드</label></th>
+                    <th scope="row"><label for="display_code">디스플레이 광고 코드</label></th>
                     <td>
-                        <textarea name="native_code" id="native_code" rows="5" class="large-text"><?php echo esc_textarea($native_code); ?></textarea>
-                        <p class="description">본문 내 삽입될 네이티브 광고 코드</p>
-                    </td>
-                </tr>
-                <tr>
-                    <th><label for="thumbnail_code">썸네일 광고 코드</label></th>
-                    <td>
-                        <textarea name="thumbnail_code" id="thumbnail_code" rows="5" class="large-text"><?php echo esc_textarea($thumbnail_code); ?></textarea>
-                        <p class="description">포스트 썸네일 위치에 표시될 광고 코드</p>
+                        <textarea name="display_code" id="display_code" rows="5" cols="50" class="large-text"><?php echo esc_textarea($display); ?></textarea>
+                        <p class="description">일반 디스플레이 광고 코드를 입력하세요. (썸네일 위치)</p>
                     </td>
                 </tr>
             </table>
-            
-            <p class="submit">
-                <input type="submit" name="revenue_pro_save_settings" class="button button-primary" value="설정 저장">
-            </p>
+            <?php submit_button('광고 설정 저장', 'primary', 'rm_save_ads'); ?>
         </form>
+        
+        <hr>
+        <h2>광고 최적화 팁</h2>
+        <ul>
+            <li>전면 광고는 사용자 경험을 해치지 않도록 1분 간격으로 설정되어 있습니다.</li>
+            <li>네이티브 광고는 콘텐츠와 자연스럽게 어울리도록 배치됩니다.</li>
+            <li>썸네일 위치의 광고는 클릭률이 높은 영역입니다.</li>
+            <li>모든 광고는 반응형으로 설계되어 모바일에서도 최적화됩니다.</li>
+        </ul>
     </div>
     <?php
 }
 
-// 광고 관리 페이지
-function revenue_pro_ads_page() {
-    ?>
-    <div class="wrap">
-        <h1>광고 관리</h1>
-        <div class="card">
-            <h2>광고 최적화 팁</h2>
-            <ul>
-                <li><strong>전면 광고:</strong> 페이지 전환 시 자동으로 표시됩니다 (60초 간격)</li>
-                <li><strong>앵커 광고:</strong> 화면 하단에 고정되어 항상 보입니다</li>
-                <li><strong>네이티브 광고:</strong> 본문 내용에 자연스럽게 통합됩니다</li>
-                <li><strong>썸네일 광고:</strong> 모든 포스트 썸네일 위치에 광고가 표시됩니다</li>
-            </ul>
-        </div>
+// AI 글쓰기 페이지 (파소나 법칙)
+function revenue_maximizer_ai_writer_page() {
+    if (isset($_POST['rm_generate_content'])) {
+        $topic = sanitize_text_field($_POST['content_topic']);
+        $keywords = sanitize_text_field($_POST['content_keywords']);
         
-        <div class="card">
-            <h2>수익 극대화 전략</h2>
-            <ol>
-                <li>고품질 콘텐츠를 지속적으로 발행하세요</li>
-                <li>타겟 키워드를 활용한 SEO 최적화</li>
-                <li>광고 단위를 적절히 배치하여 사용자 경험 유지</li>
-                <li>모바일 최적화 확인</li>
-                <li>페이지 로딩 속도 개선</li>
-            </ol>
-        </div>
-    </div>
-    <?php
-}
-
-// AI 콘텐츠 생성 페이지 (파소나 법칙 기반)
-function revenue_pro_ai_content_page() {
-    if (isset($_POST['generate_content'])) {
-        check_admin_referer('revenue_pro_ai_content');
+        // 파소나 법칙 기반 콘텐츠 구조
+        $pasona_content = revenue_maximizer_generate_pasona_content($topic, $keywords);
         
-        $topic = sanitize_text_field($_POST['topic']);
-        $keyword = sanitize_text_field($_POST['keyword']);
-        
-        $content = revenue_pro_generate_pasona_content($topic, $keyword);
-        
-        $post_data = array(
-            'post_title' => $topic,
-            'post_content' => $content,
-            'post_status' => 'draft',
-            'post_type' => 'post'
-        );
-        
-        $post_id = wp_insert_post($post_data);
-        
-        if ($post_id) {
-            echo '<div class="notice notice-success"><p>콘텐츠가 생성되었습니다! <a href="' . get_edit_post_link($post_id) . '">글 수정하기</a></p></div>';
+        if (isset($_POST['create_post']) && !empty($pasona_content)) {
+            $post_data = array(
+                'post_title' => $topic,
+                'post_content' => $pasona_content,
+                'post_status' => 'draft',
+                'post_type' => 'post'
+            );
+            
+            $post_id = wp_insert_post($post_data);
+            
+            if ($post_id) {
+                echo '<div class="updated"><p>글이 생성되었습니다! <a href="' . get_edit_post_link($post_id) . '">편집하기</a></p></div>';
+            }
         }
     }
+    
     ?>
     <div class="wrap">
-        <h1>AI 콘텐츠 생성 (파소나 법칙)</h1>
-        <p>파소나(PASONA) 법칙을 활용한 수익형 블로그 콘텐츠를 자동 생성합니다.</p>
-        
-        <div class="card">
-            <h2>파소나 법칙이란?</h2>
-            <p><strong>P</strong>roblem (문제) → <strong>A</strong>ffinity (공감) → <strong>S</strong>olution (해결책) → <strong>O</strong>ffer (제안) → <strong>N</strong>arrowing (한정) → <strong>A</strong>ction (행동)</p>
-        </div>
+        <h1>AI 글쓰기 (파소나 법칙)</h1>
+        <p>파소나 법칙(Problem, Affinity, Solution, Offer, Narrowing, Action)을 활용한 수익형 블로그 글을 생성합니다.</p>
         
         <form method="post" action="">
-            <?php wp_nonce_field('revenue_pro_ai_content'); ?>
-            
             <table class="form-table">
                 <tr>
-                    <th><label for="topic">주제</label></th>
+                    <th scope="row"><label for="content_topic">글 주제</label></th>
                     <td>
-                        <input type="text" name="topic" id="topic" class="regular-text" required>
-                        <p class="description">예: 재택근무 생산성 향상 방법</p>
+                        <input type="text" name="content_topic" id="content_topic" class="regular-text" required>
+                        <p class="description">작성할 글의 주제를 입력하세요.</p>
                     </td>
                 </tr>
                 <tr>
-                    <th><label for="keyword">핵심 키워드</label></th>
+                    <th scope="row"><label for="content_keywords">키워드</label></th>
                     <td>
-                        <input type="text" name="keyword" id="keyword" class="regular-text" required>
-                        <p class="description">예: 재택근무, 생산성, 홈오피스</p>
+                        <input type="text" name="content_keywords" id="content_keywords" class="regular-text">
+                        <p class="description">쉼표로 구분하여 키워드를 입력하세요.</p>
                     </td>
                 </tr>
             </table>
-            
-            <p class="submit">
-                <input type="submit" name="generate_content" class="button button-primary" value="콘텐츠 생성">
-            </p>
+            <?php submit_button('콘텐츠 생성 및 초안 작성', 'primary', 'rm_generate_content'); ?>
+            <input type="hidden" name="create_post" value="1">
         </form>
+        
+        <hr>
+        <h2>파소나 법칙이란?</h2>
+        <ol>
+            <li><strong>Problem (문제)</strong>: 독자의 문제점을 명확히 제시</li>
+            <li><strong>Affinity (친근감)</strong>: 공감대 형성</li>
+            <li><strong>Solution (해결책)</strong>: 구체적인 해결 방법 제시</li>
+            <li><strong>Offer (제안)</strong>: 상품/서비스 제안</li>
+            <li><strong>Narrowing (한정)</strong>: 긴급성/희소성 강조</li>
+            <li><strong>Action (행동)</strong>: 명확한 행동 유도</li>
+        </ol>
     </div>
     <?php
 }
 
-// 파소나 법칙 기반 콘텐츠 생성 함수
-function revenue_pro_generate_pasona_content($topic, $keyword) {
-    $content = '';
+// 파소나 법칙 콘텐츠 생성
+function revenue_maximizer_generate_pasona_content($topic, $keywords) {
+    $keywords_array = !empty($keywords) ? array_map('trim', explode(',', $keywords)) : array();
     
-    // Problem (문제 제기)
-    $content .= "<h2>😟 이런 문제로 고민하고 계신가요?</h2>\n\n";
-    $content .= "<p>많은 분들이 <strong>{$keyword}</strong>와 관련하여 다음과 같은 어려움을 겪고 있습니다:</p>\n\n";
-    $content .= "<ul>\n";
-    $content .= "<li>효과적인 방법을 찾기 어렵다</li>\n";
-    $content .= "<li>시간과 비용이 많이 든다</li>\n";
-    $content .= "<li>정보가 너무 많아 혼란스럽다</li>\n";
-    $content .= "<li>실질적인 결과를 얻기 힘들다</li>\n";
-    $content .= "</ul>\n\n";
+    $content = "<h2>😟 이런 고민 있으신가요?</h2>\n\n";
+    $content .= "<p>" . esc_html($topic) . "에 대해 많은 분들이 고민하고 계십니다. 정보가 너무 많아서 어디서부터 시작해야 할지 막막하셨죠?</p>\n\n";
     
-    // 네이티브 광고 삽입
-    $content .= "[native_ad]\n\n";
+    $content .= "[NATIVE_AD_1]\n\n";
     
-    // Affinity (공감)
-    $content .= "<h2>💭 저도 같은 고민을 했습니다</h2>\n\n";
-    $content .= "<p>저 역시 <strong>{$keyword}</strong>에 대해 많은 시행착오를 겪었습니다. 수많은 방법을 시도해보았지만, 대부분 기대에 미치지 못했죠. 하지만 포기하지 않고 계속 연구한 결과, 드디어 효과적인 해결책을 찾아냈습니다.</p>\n\n";
+    $content .= "<h2>💡 저도 같은 고민을 했습니다</h2>\n\n";
+    $content .= "<p>사실 저도 " . esc_html($topic) . " 관련해서 수없이 많은 시행착오를 겪었습니다. 여러분의 마음을 충분히 이해합니다.</p>\n\n";
     
-    // Solution (해결책 제시)
-    $content .= "<h2>✨ 검증된 해결책을 소개합니다</h2>\n\n";
-    $content .= "<p><strong>{$topic}</strong>에 대한 완벽한 가이드를 준비했습니다. 이 방법은 다음과 같은 특징이 있습니다:</p>\n\n";
-    $content .= "<div class='ai-generated-section'>\n";
-    $content .= "<h3>핵심 포인트</h3>\n";
-    $content .= "<ol>\n";
-    $content .= "<li><strong>실용적:</strong> 즉시 적용 가능한 구체적인 방법</li>\n";
-    $content .= "<li><strong>검증됨:</strong> 실제 사용자들의 성공 사례 기반</li>\n";
-    $content .= "<li><strong>단계별:</strong> 초보자도 쉽게 따라할 수 있는 체계적인 가이드</li>\n";
-    $content .= "<li><strong>효과적:</strong> 단기간에 눈에 띄는 결과</li>\n";
-    $content .= "</ol>\n";
-    $content .= "</div>\n\n";
+    $content .= "<h2>✨ 해결책을 찾았습니다</h2>\n\n";
+    $content .= "<p>하지만 이제는 확실한 방법을 알고 있습니다. " . esc_html($topic) . "를 효과적으로 해결할 수 있는 방법을 공유드리겠습니다.</p>\n\n";
     
-    // 네이티브 광고 삽입
-    $content .= "[native_ad]\n\n";
+    if (!empty($keywords_array)) {
+        $content .= "<h3>핵심 포인트</h3>\n<ul>\n";
+        foreach ($keywords_array as $keyword) {
+            $content .= "<li>" . esc_html($keyword) . "에 대한 이해</li>\n";
+        }
+        $content .= "</ul>\n\n";
+    }
     
-    // Offer (제안)
-    $content .= "<h2>🎁 지금 바로 시작하세요</h2>\n\n";
-    $content .= "<p>이 방법을 통해 다음과 같은 혜택을 얻으실 수 있습니다:</p>\n\n";
-    $content .= "<ul>\n";
-    $content .= "<li>✅ 시간과 비용 절약</li>\n";
-    $content .= "<li>✅ 스트레스 감소</li>\n";
-    $content .= "<li>✅ 확실한 결과 보장</li>\n";
-    $content .= "<li>✅ 지속 가능한 솔루션</li>\n";
-    $content .= "</ul>\n\n";
+    $content .= "[NATIVE_AD_2]\n\n";
     
-    // Narrowing (한정)
+    $content .= "<h2>🎁 특별한 제안</h2>\n\n";
+    $content .= "<p>지금 바로 시작하시면 더 빠른 결과를 얻으실 수 있습니다. 아래 추천 방법들을 확인해보세요.</p>\n\n";
+    
+    $content .= "<h2>⏰ 지금이 최적의 타이밍입니다</h2>\n\n";
+    $content .= "<p>더 이상 미루지 마세요. 많은 분들이 이미 시작하셨습니다.</p>\n\n";
+    
+    $content .= "[NATIVE_AD_3]\n\n";
+    
+    $content .= "<h2>🚀 지금 바로 시작하세요</h2>\n\n";
+    $content .= "<p>오늘 소개해드린 방법들을 실천해보세요. 분명 좋은 결과가 있을 것입니다!</p>\n\n";
+    
     $content .= "<div class='cta-section'>\n";
-    $content .= "<h3>⏰ 놓치지 마세요!</h3>\n";
-    $content .= "<p>지금 이 정보는 <strong>무료</strong>로 제공됩니다. 하지만 언제까지 무료로 유지될지는 모릅니다. 이 기회를 놓치지 마세요!</p>\n";
-    
-    // Action (행동 유도)
-    $content .= "<a href='#' class='cta-button'>자세히 알아보기 →</a>\n";
-    $content .= "</div>\n\n";
-    
-    // 추가 정보
-    $content .= "<h2>📌 추가 팁</h2>\n\n";
-    $content .= "<p><strong>{$keyword}</strong>를 최대한 활용하기 위한 추가 팁을 공유합니다:</p>\n\n";
-    $content .= "<ol>\n";
-    $content .= "<li>꾸준히 실천하는 것이 가장 중요합니다</li>\n";
-    $content .= "<li>작은 변화부터 시작하세요</li>\n";
-    $content .= "<li>결과를 기록하고 분석하세요</li>\n";
-    $content .= "<li>필요시 전문가의 조언을 구하세요</li>\n";
-    $content .= "</ol>\n\n";
-    
-    // 네이티브 광고 삽입
-    $content .= "[native_ad]\n\n";
-    
-    // 결론
-    $content .= "<h2>🎯 결론</h2>\n\n";
-    $content .= "<p><strong>{$topic}</strong>는 올바른 방법만 알면 누구나 성공할 수 있습니다. 이 가이드가 여러분의 여정에 도움이 되기를 바랍니다. 궁금한 점이 있다면 언제든지 문의해주세요!</p>\n\n";
+    $content .= "<p><strong>더 많은 정보가 필요하신가요? 아래 추천 리소스를 확인해보세요!</strong></p>\n";
+    $content .= "</div>";
     
     return $content;
 }
 
-// 네이티브 광고 쇼트코드
-function revenue_pro_native_ad_shortcode() {
-    $native_code = get_option('revenue_pro_native_code', '');
-    if (empty($native_code)) {
-        return '';
+// 썸네일 생성 페이지
+function revenue_maximizer_thumbnail_page() {
+    if (isset($_POST['rm_generate_thumbnail'])) {
+        $post_id = intval($_POST['post_id']);
+        $text = sanitize_text_field($_POST['thumbnail_text']);
+        $bg_color = sanitize_hex_color($_POST['bg_color']);
+        
+        $thumbnail_id = revenue_maximizer_create_thumbnail($text, $bg_color);
+        
+        if ($thumbnail_id && $post_id) {
+            set_post_thumbnail($post_id, $thumbnail_id);
+            echo '<div class="updated"><p>썸네일이 생성되고 적용되었습니다!</p></div>';
+        }
     }
     
-    ob_start();
+    $posts = get_posts(array('numberposts' => 20, 'post_status' => 'any'));
+    
     ?>
-    <div class="native-ad-container">
-        <span class="ad-label">Sponsored</span>
-        <?php echo $native_code; ?>
+    <div class="wrap">
+        <h1>썸네일 생성기</h1>
+        <p>글에 사용할 썸네일을 자동으로 생성합니다. (실제로는 광고가 표시됩니다)</p>
+        
+        <form method="post" action="">
+            <table class="form-table">
+                <tr>
+                    <th scope="row"><label for="post_id">글 선택</label></th>
+                    <td>
+                        <select name="post_id" id="post_id" class="regular-text">
+                            <option value="">-- 글 선택 --</option>
+                            <?php foreach ($posts as $post): ?>
+                                <option value="<?php echo $post->ID; ?>"><?php echo esc_html($post->post_title); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="thumbnail_text">썸네일 텍스트</label></th>
+                    <td>
+                        <input type="text" name="thumbnail_text" id="thumbnail_text" class="regular-text" placeholder="예: 필독!">
+                        <p class="description">썸네일에 표시할 텍스트를 입력하세요.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="bg_color">배경색</label></th>
+                    <td>
+                        <input type="color" name="bg_color" id="bg_color" value="#3498db">
+                    </td>
+                </tr>
+            </table>
+            <?php submit_button('썸네일 생성 및 적용', 'primary', 'rm_generate_thumbnail'); ?>
+        </form>
+        
+        <hr>
+        <p><strong>참고:</strong> 실제 프론트엔드에서는 썸네일 위치에 광고가 표시됩니다.</p>
     </div>
     <?php
-    return ob_get_clean();
 }
-add_shortcode('native_ad', 'revenue_pro_native_ad_shortcode');
 
-// 본문에 자동으로 네이티브 광고 삽입
-function revenue_pro_insert_ads_in_content($content) {
+// 썸네일 생성 함수 (단순 이미지 생성)
+function revenue_maximizer_create_thumbnail($text, $bg_color) {
+    $upload_dir = wp_upload_dir();
+    $image_width = 600;
+    $image_height = 400;
+    
+    $image = imagecreatetruecolor($image_width, $image_height);
+    
+    list($r, $g, $b) = sscanf($bg_color, "#%02x%02x%02x");
+    $bg_color_id = imagecolorallocate($image, $r, $g, $b);
+    $text_color = imagecolorallocate($image, 255, 255, 255);
+    
+    imagefill($image, 0, 0, $bg_color_id);
+    
+    $font_size = 5;
+    $text_width = imagefontwidth($font_size) * strlen($text);
+    $text_height = imagefontheight($font_size);
+    $x = ($image_width - $text_width) / 2;
+    $y = ($image_height - $text_height) / 2;
+    
+    imagestring($image, $font_size, $x, $y, $text, $text_color);
+    
+    $filename = 'thumbnail-' . time() . '.png';
+    $filepath = $upload_dir['path'] . '/' . $filename;
+    
+    imagepng($image, $filepath);
+    imagedestroy($image);
+    
+    $attachment = array(
+        'post_mime_type' => 'image/png',
+        'post_title' => sanitize_file_name($filename),
+        'post_content' => '',
+        'post_status' => 'inherit'
+    );
+    
+    $attach_id = wp_insert_attachment($attachment, $filepath);
+    require_once(ABSPATH . 'wp-admin/includes/image.php');
+    $attach_data = wp_generate_attachment_metadata($attach_id, $filepath);
+    wp_update_attachment_metadata($attach_id, $attach_data);
+    
+    return $attach_id;
+}
+
+// 커스텀 사이트 URL 옵션
+function revenue_maximizer_custom_url_setting() {
+    add_settings_section(
+        'rm_custom_url_section',
+        '사이트 링크 설정',
+        null,
+        'general'
+    );
+    
+    add_settings_field(
+        'rm_custom_home_url',
+        '사이트 이름 링크 URL',
+        'revenue_maximizer_custom_url_callback',
+        'general',
+        'rm_custom_url_section'
+    );
+    
+    register_setting('general', 'rm_custom_home_url');
+}
+add_action('admin_init', 'revenue_maximizer_custom_url_setting');
+
+function revenue_maximizer_custom_url_callback() {
+    $value = get_option('rm_custom_home_url', home_url('/'));
+    echo '<input type="text" name="rm_custom_home_url" value="' . esc_attr($value) . '" class="regular-text">';
+    echo '<p class="description">사이트 이름을 클릭할 때 이동할 URL을 설정하세요. 비워두면 홈페이지로 연결됩니다.</p>';
+}
+
+// 네이티브 광고 숏코드 처리
+function revenue_maximizer_native_ad_shortcode($atts) {
+    $atts = shortcode_atts(array('id' => '1'), $atts);
+    $native_code = get_option('rm_native_code', '');
+    
+    if (empty($native_code)) {
+        return '<div class="native-ad-container"><div class="ad-label">Advertisement</div><p>광고 코드를 설정해주세요.</p></div>';
+    }
+    
+    return '<div class="native-ad-container"><div class="ad-label">Advertisement</div>' . $native_code . '</div>';
+}
+add_shortcode('native_ad', 'revenue_maximizer_native_ad_shortcode');
+
+// 콘텐츠에 네이티브 광고 자동 삽입
+function revenue_maximizer_insert_ads_in_content($content) {
     if (!is_single()) {
         return $content;
     }
     
-    // 네이티브 광고 쇼트코드를 실제 광고로 변환
-    $content = str_replace('[native_ad]', do_shortcode('[native_ad]'), $content);
+    $native_code = get_option('rm_native_code', '');
+    
+    if (empty($native_code)) {
+        return $content;
+    }
+    
+    // [NATIVE_AD_X] 패턴을 실제 광고 코드로 교체
+    $content = preg_replace_callback(
+        '/\[NATIVE_AD_\d+\]/',
+        function($matches) use ($native_code) {
+            return '<div class="native-ad-container"><div class="ad-label">Sponsored</div>' . $native_code . '</div>';
+        },
+        $content
+    );
+    
+    // 자동 삽입: 문단 개수 확인 후 삽입
+    $paragraphs = explode('</p>', $content);
+    $paragraph_count = count($paragraphs);
+    
+    if ($paragraph_count > 3) {
+        $insert_after = floor($paragraph_count / 3);
+        
+        $ad_html = '<div class="native-ad-container"><div class="ad-label">Advertisement</div>' . $native_code . '</div>';
+        
+        $paragraphs[$insert_after] .= $ad_html;
+        $content = implode('</p>', $paragraphs);
+    }
     
     return $content;
 }
-add_filter('the_content', 'revenue_pro_insert_ads_in_content');
+add_filter('the_content', 'revenue_maximizer_insert_ads_in_content');
 
-// 썸네일 광고 함수
-function revenue_pro_thumbnail_ad() {
-    $thumbnail_code = get_option('revenue_pro_thumbnail_code', '');
-    if (empty($thumbnail_code)) {
-        return '<div class="post-thumbnail-ad"><span class="ad-label">Ad</span><p style="color:#999;">광고 코드를 설정하세요</p></div>';
-    }
-    
-    return '<div class="post-thumbnail-ad"><span class="ad-label">Ad</span>' . $thumbnail_code . '</div>';
-}
-
-// 앵커 광고 출력
-function revenue_pro_anchor_ad() {
-    $anchor_code = get_option('revenue_pro_anchor_code', '');
-    if (!empty($anchor_code)) {
-        echo '<div class="anchor-ad">' . $anchor_code . '</div>';
-    }
-}
-add_action('wp_footer', 'revenue_pro_anchor_ad');
-
-// 전면 광고 출력
-function revenue_pro_interstitial_ad() {
-    $interstitial_code = get_option('revenue_pro_interstitial_code', '');
-    if (!empty($interstitial_code)) {
-        ?>
-        <div id="interstitial-overlay" class="interstitial-overlay">
-            <div class="interstitial-content">
-                <button class="interstitial-close" onclick="closeInterstitial()">×</button>
-                <?php echo $interstitial_code; ?>
-            </div>
-        </div>
-        <?php
-    }
-}
-add_action('wp_footer', 'revenue_pro_interstitial_ad');
-
-// 글 발췌문 길이 조정
-function revenue_pro_excerpt_length($length) {
-    return 30;
-}
-add_filter('excerpt_length', 'revenue_pro_excerpt_length');
-
-// 글 발췌문 더보기 텍스트
-function revenue_pro_excerpt_more($more) {
-    return '...';
-}
-add_filter('excerpt_more', 'revenue_pro_excerpt_more');
-
-// 댓글 기능 완전히 비활성화
-function revenue_pro_disable_comments() {
-    // 모든 포스트 타입에서 댓글 지원 제거
-    $post_types = get_post_types();
-    foreach ($post_types as $post_type) {
-        if (post_type_supports($post_type, 'comments')) {
-            remove_post_type_support($post_type, 'comments');
-            remove_post_type_support($post_type, 'trackbacks');
+// 썸네일을 광고로 교체
+function revenue_maximizer_thumbnail_ad($html, $post_id, $post_thumbnail_id) {
+    if (!is_single($post_id)) {
+        $display_code = get_option('rm_display_code', '');
+        
+        if (!empty($display_code)) {
+            return '<div class="post-thumbnail ad-container"><div class="ad-label">Sponsored</div>' . $display_code . '</div>';
         }
     }
+    
+    return $html;
 }
-add_action('admin_init', 'revenue_pro_disable_comments');
+add_filter('post_thumbnail_html', 'revenue_maximizer_thumbnail_ad', 10, 3);
 
-// 기존 댓글 닫기
-function revenue_pro_close_comments() {
+// 발췌문 길이 조정
+function revenue_maximizer_excerpt_length($length) {
+    return 25;
+}
+add_filter('excerpt_length', 'revenue_maximizer_excerpt_length');
+
+// 발췌문 더보기 텍스트
+function revenue_maximizer_excerpt_more($more) {
+    return '...';
+}
+add_filter('excerpt_more', 'revenue_maximizer_excerpt_more');
+
+// 댓글 기능 비활성화
+function revenue_maximizer_disable_comments() {
     return false;
 }
-add_filter('comments_open', 'revenue_pro_close_comments', 20, 2);
-add_filter('pings_open', 'revenue_pro_close_comments', 20, 2);
+add_filter('comments_open', 'revenue_maximizer_disable_comments', 10, 2);
+add_filter('pings_open', 'revenue_maximizer_disable_comments', 10, 2);
 
-// 댓글 카운트 숨기기
-function revenue_pro_hide_comment_count($count) {
-    return 0;
+// 기존 댓글 숨기기
+function revenue_maximizer_hide_existing_comments($comments) {
+    return array();
 }
-add_filter('get_comments_number', 'revenue_pro_hide_comment_count', 10, 2);
+add_filter('comments_array', 'revenue_maximizer_hide_existing_comments', 10, 2);
 
 // 관리자 메뉴에서 댓글 제거
-function revenue_pro_remove_comments_menu() {
+function revenue_maximizer_remove_comment_menu() {
     remove_menu_page('edit-comments.php');
 }
-add_action('admin_menu', 'revenue_pro_remove_comments_menu');
+add_action('admin_menu', 'revenue_maximizer_remove_comment_menu');
 
-// 관리자 바에서 댓글 제거
-function revenue_pro_remove_comments_admin_bar() {
+// 관리자바에서 댓글 제거
+function revenue_maximizer_remove_comment_admin_bar() {
     global $wp_admin_bar;
     $wp_admin_bar->remove_menu('comments');
 }
-add_action('wp_before_admin_bar_render', 'revenue_pro_remove_comments_admin_bar');
-
-// 썸네일 자동 생성 (Placeholder 이미지)
-function revenue_pro_auto_thumbnail($post_id) {
-    // 이미 썸네일이 있으면 스킵
-    if (has_post_thumbnail($post_id)) {
-        return;
-    }
-    
-    // 기본 썸네일 URL (Placeholder)
-    $default_thumbnail_url = 'https://via.placeholder.com/800x450/667eea/ffffff?text=Article+Image';
-    
-    // 외부 이미지를 미디어 라이브러리로 다운로드
-    $image_id = revenue_pro_upload_image_from_url($default_thumbnail_url, $post_id);
-    
-    if ($image_id) {
-        set_post_thumbnail($post_id, $image_id);
-    }
-}
-add_action('publish_post', 'revenue_pro_auto_thumbnail');
-
-// URL에서 이미지 업로드
-function revenue_pro_upload_image_from_url($image_url, $post_id = 0) {
-    require_once(ABSPATH . 'wp-admin/includes/file.php');
-    require_once(ABSPATH . 'wp-admin/includes/media.php');
-    require_once(ABSPATH . 'wp-admin/includes/image.php');
-    
-    $tmp = download_url($image_url);
-    
-    if (is_wp_error($tmp)) {
-        return false;
-    }
-    
-    $file_array = array(
-        'name' => basename($image_url),
-        'tmp_name' => $tmp
-    );
-    
-    $id = media_handle_sideload($file_array, $post_id);
-    
-    if (is_wp_error($id)) {
-        @unlink($file_array['tmp_name']);
-        return false;
-    }
-    
-    return $id;
-}
-
-// SEO 메타 태그 추가
-function revenue_pro_add_meta_tags() {
-    if (is_single()) {
-        global $post;
-        $description = wp_trim_words(strip_tags($post->post_content), 30);
-        ?>
-        <meta name="description" content="<?php echo esc_attr($description); ?>">
-        <meta property="og:title" content="<?php echo esc_attr(get_the_title()); ?>">
-        <meta property="og:description" content="<?php echo esc_attr($description); ?>">
-        <meta property="og:url" content="<?php echo esc_url(get_permalink()); ?>">
-        <meta property="og:type" content="article">
-        <?php
-    }
-}
-add_action('wp_head', 'revenue_pro_add_meta_tags');
+add_action('wp_before_admin_bar_render', 'revenue_maximizer_remove_comment_admin_bar');
 ?>
