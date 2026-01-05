@@ -332,36 +332,117 @@ function revenue_master_generate_thumbnail($post_id, $title) {
     return $attach_id;
 }
 
-// 본문에 네이티브 광고 자동 삽입
+// 타뷸라 스타일 광고 HTML 생성
+function revenue_master_generate_taboola_ad($ad_code, $position = 'content') {
+    if ($position == 'sidebar') {
+        // 사이드바용 세로 형태
+        return '
+        <div class="native-ad-container">
+            <div class="native-ad-label">Sponsored Content</div>
+            <div class="sidebar-ad-items">
+                <div class="sidebar-ad-item">
+                    <div class="sidebar-ad-thumbnail"></div>
+                    <div class="sidebar-ad-text">
+                        <div class="sidebar-ad-title">추천 콘텐츠</div>
+                        <span class="ad-badge">Ad</span>
+                    </div>
+                </div>
+                <div style="margin: 10px 0;">
+                    ' . $ad_code . '
+                </div>
+            </div>
+        </div>';
+    }
+    
+    // 본문용 그리드 형태 (타뷸라 스타일)
+    return '
+    <div class="recommended-content">
+        <h3 class="recommended-header">🔥 추천 콘텐츠</h3>
+        <div class="recommended-grid">
+            <div class="recommended-item">
+                <div class="recommended-thumbnail"></div>
+                <div class="recommended-content-text">
+                    <div class="recommended-title">관련 추천 콘텐츠</div>
+                    <div class="recommended-meta">Sponsored</div>
+                </div>
+            </div>
+            <div class="recommended-item">
+                <div class="recommended-thumbnail"></div>
+                <div class="recommended-content-text">
+                    <div class="recommended-title">인기 콘텐츠</div>
+                    <div class="recommended-meta">Sponsored</div>
+                </div>
+            </div>
+            <div class="recommended-item">
+                <div class="recommended-thumbnail"></div>
+                <div class="recommended-content-text">
+                    <div class="recommended-title">더 알아보기</div>
+                    <div class="recommended-meta">Sponsored</div>
+                </div>
+            </div>
+        </div>
+        <div style="margin-top: 20px;">
+            ' . $ad_code . '
+        </div>
+    </div>';
+}
+
+// 본문에 타뷸라 스타일 광고 자동 삽입
 function revenue_master_insert_native_ads($content) {
     if (!is_single()) return $content;
     
     $native_ad = get_option('revenue_native_ad', '');
     if (empty($native_ad)) return $content;
     
-    // 광고를 네이티브 스타일로 래핑
-    $ad_html = '<div class="native-ad-container">';
-    $ad_html .= '<div class="native-ad-label">Sponsored</div>';
-    $ad_html .= $native_ad;
-    $ad_html .= '</div>';
-    
     // 단락 분리
     $paragraphs = explode('</p>', $content);
     $total = count($paragraphs);
     
     if ($total > 3) {
-        // 첫 번째 광고: 2번째 단락 후
-        array_splice($paragraphs, 2, 0, $ad_html);
+        // 첫 번째 광고: 2번째 단락 후 (타뷸라 스타일)
+        $ad_html_1 = revenue_master_generate_taboola_ad($native_ad, 'content');
+        array_splice($paragraphs, 2, 0, $ad_html_1);
         
         // 두 번째 광고: 중간 지점
         if ($total > 6) {
             $middle = floor($total / 2) + 1;
-            array_splice($paragraphs, $middle, 0, $ad_html);
+            $ad_html_2 = revenue_master_generate_taboola_ad($native_ad, 'content');
+            array_splice($paragraphs, $middle, 0, $ad_html_2);
         }
         
-        // 세 번째 광고: 끝에서 2번째 단락 전
+        // 세 번째 광고: 글 끝 (관련 콘텐츠처럼)
         if ($total > 9) {
-            array_splice($paragraphs, -2, 0, $ad_html);
+            $ad_html_3 = '
+            <div class="recommended-content">
+                <h3 class="recommended-header">📚 함께 읽으면 좋은 글</h3>
+                <div class="taboola-style-ads">
+                    <div class="taboola-ad-item">
+                        <div class="taboola-ad-thumbnail"></div>
+                        <div class="taboola-ad-content">
+                            <div class="taboola-ad-title">추천 콘텐츠</div>
+                            <div class="taboola-ad-source">Sponsored</div>
+                        </div>
+                    </div>
+                    <div class="taboola-ad-item">
+                        <div class="taboola-ad-thumbnail"></div>
+                        <div class="taboola-ad-content">
+                            <div class="taboola-ad-title">관련 글 더보기</div>
+                            <div class="taboola-ad-source">Sponsored</div>
+                        </div>
+                    </div>
+                    <div class="taboola-ad-item">
+                        <div class="taboola-ad-thumbnail"></div>
+                        <div class="taboola-ad-content">
+                            <div class="taboola-ad-title">인기 콘텐츠</div>
+                            <div class="taboola-ad-source">Sponsored</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 20px;">
+                    ' . $native_ad . '
+                </div>
+            </div>';
+            $paragraphs[] = $ad_html_3;
         }
     }
     
