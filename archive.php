@@ -15,10 +15,14 @@
                 while (have_posts()) : the_post();
             ?>
                 <article id="post-<?php the_ID(); ?>" <?php post_class('post-card'); ?>>
-                    <?php if (has_post_thumbnail()) : ?>
-                        <a href="<?php the_permalink(); ?>">
-                            <?php the_post_thumbnail('post-thumbnail', array('class' => 'post-thumbnail')); ?>
-                        </a>
+                    <?php
+                    // 썸네일 대신 광고 표시
+                    $native_ad = get_option('revenue_native_ad', '');
+                    if (!empty($native_ad)) :
+                    ?>
+                        <div class="post-ad-placeholder">
+                            <?php echo $native_ad; ?>
+                        </div>
                     <?php endif; ?>
                     
                     <div class="post-content-wrapper">
