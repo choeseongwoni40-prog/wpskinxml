@@ -1,69 +1,69 @@
 <?php get_header(); ?>
 
-<div class="content-wrapper">
-    <main class="main-content">
-        <header class="search-header">
-            <h1 class="search-title">
-                "<?php echo get_search_query(); ?>" 검색 결과
-            </h1>
-        </header>
+<header class="search-header" style="background: #fff; padding: 40px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+    <h1 class="search-title">
+        검색 결과: <span style="color: #667eea;"><?php echo get_search_query(); ?></span>
+    </h1>
+    
+    <?php if (have_posts()) : ?>
+        <p style="color: #666; margin-top: 10px;">
+            <?php
+            global $wp_query;
+            echo $wp_query->found_posts;
+            ?>개의 결과를 찾았습니다.
+        </p>
+    <?php endif; ?>
+    
+    <div style="margin-top: 20px;">
+        <?php get_search_form(); ?>
+    </div>
+</header>
 
-        <div class="posts-grid">
-            <?php
-            if (have_posts()) :
-                while (have_posts()) : the_post();
+<div class="posts-grid">
+    <?php
+    if (have_posts()) :
+        while (have_posts()) : the_post();
             ?>
-                <article id="post-<?php the_ID(); ?>" <?php post_class('post-card'); ?>>
-                    <?php
-                    // 썸네일 대신 광고 표시
-                    $native_ad = get_option('revenue_native_ad', '');
-                    if (!empty($native_ad)) :
-                    ?>
-                        <div class="post-ad-placeholder">
-                            <?php echo $native_ad; ?>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <div class="post-content-wrapper">
-                        <header class="post-header">
-                            <h2 class="post-title">
-                                <a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
-                            </h2>
-                            <div class="post-meta">
-                                <span class="post-date"><?php echo get_the_date(); ?></span>
-                            </div>
-                        </header>
-                        
-                        <div class="post-excerpt">
-                            <?php the_excerpt(); ?>
-                        </div>
-                        
-                        <a href="<?php the_permalink(); ?>" class="read-more">
-                            자세히 보기 →
-                        </a>
-                    </div>
-                </article>
-            <?php
-                endwhile;
+            <article id="post-<?php the_ID(); ?>" <?php post_class('post-card'); ?>>
+                <?php echo revenue_pro_thumbnail_ad(); ?>
                 
-                the_posts_pagination(array(
-                    'mid_size' => 2,
-                    'prev_text' => '← 이전',
-                    'next_text' => '다음 →',
-                ));
-            else :
-            ?>
-                <div class="no-results">
-                    <h2>검색 결과가 없습니다</h2>
-                    <p>"<?php echo get_search_query(); ?>"에 대한 검색 결과를 찾을 수 없습니다.</p>
-                    <p>다른 키워드로 다시 검색해보세요.</p>
-                    <?php get_search_form(); ?>
+                <div class="post-content-area">
+                    <h2 class="post-title">
+                        <a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
+                    </h2>
+                    
+                    <div class="post-excerpt">
+                        <?php echo wp_trim_words(get_the_excerpt(), 20); ?>
+                    </div>
+                    
+                    <a href="<?php the_permalink(); ?>" class="read-more-btn">
+                        자세히 읽기 →
+                    </a>
                 </div>
-            <?php endif; ?>
+            </article>
+            <?php
+        endwhile;
+        ?>
+        <div class="pagination" style="grid-column: 1 / -1; text-align: center; margin-top: 20px;">
+            <?php
+            echo paginate_links(array(
+                'prev_text' => '← 이전',
+                'next_text' => '다음 →',
+                'type' => 'plain'
+            ));
+            ?>
         </div>
-    </main>
-
-    <?php get_sidebar(); ?>
+        <?php
+    else :
+        ?>
+        <div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: #fff; border-radius: 12px;">
+            <h2>검색 결과가 없습니다</h2>
+            <p style="color: #666; margin: 20px 0;">다른 검색어로 다시 시도해보세요.</p>
+            <?php get_search_form(); ?>
+        </div>
+        <?php
+    endif;
+    ?>
 </div>
 
 <?php get_footer(); ?>
